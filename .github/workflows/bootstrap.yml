@@ -1,0 +1,24 @@
+name: Bootstrap
+# Primeira publicação das imagens no ECR. Requer: infra do repo K8S e RDS do repo DB já criados.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    uses: ./.github/workflows/_build-test.yml
+
+  build-push:
+    needs: build-test
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      image-tag: latest # os manifests do repo K8S usam :latest
+    secrets: inherit
+
+  k8s-restart:
+    needs: build-push
+    uses: ./.github/workflows/_k8s-restart.yml
+    secrets: inherit

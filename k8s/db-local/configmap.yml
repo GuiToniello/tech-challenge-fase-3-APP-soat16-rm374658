@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: oficina
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: techchallenge-oficina
+data:
+  POSTGRES_DB: "oficina"
+  POSTGRES_USER: "sa"

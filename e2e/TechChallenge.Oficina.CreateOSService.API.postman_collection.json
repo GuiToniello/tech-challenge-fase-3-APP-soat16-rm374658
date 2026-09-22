@@ -1,0 +1,783 @@
+{
+  "info": {
+    "_postman_id": "7f65cbba-8f80-4a52-b33b-e1db63a8f596",
+    "name": "TechChallenge Oficina CreateOSService API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection isolada da CreateOSService API. Valida autenticacao, disponibilidade e os fluxos principal e alternativos do endpoint de abertura completa da ordem de servico."
+  },
+  "variable": [
+    {
+      "key": "createOSServiceBaseUrl",
+      "value": "http://localhost:7196"
+    },
+    {
+      "key": "auth0_domain",
+      "value": "dev-mesy5gadx7cqn4i0.us.auth0.com"
+    },
+    {
+      "key": "auth0_client_id",
+      "value": "VJNHFAcEAUxr7D0PgmFA8paa01zSpj5C"
+    },
+    {
+      "key": "auth0_username",
+      "value": "guitoniello@gmail.com"
+    },
+    {
+      "key": "auth0_password",
+      "value": "P@ssw0rd"
+    },
+    {
+      "key": "auth0_audience",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "createos_auth_access_token",
+      "value": ""
+    },
+    {
+      "key": "createos_stamp",
+      "value": ""
+    },
+    {
+      "key": "createos_cliente_nome",
+      "value": ""
+    },
+    {
+      "key": "createos_cliente_identificacao",
+      "value": ""
+    },
+    {
+      "key": "createos_cliente_email",
+      "value": ""
+    },
+    {
+      "key": "createos_veiculo_placa",
+      "value": ""
+    },
+    {
+      "key": "createos_veiculo_renavam",
+      "value": ""
+    },
+    {
+      "key": "createos_ordem_id",
+      "value": ""
+    },
+    {
+      "key": "createos_identificacao_invalida",
+      "value": "12345678900"
+    },
+    {
+      "key": "createos_email_invalido",
+      "value": "email-invalido"
+    },
+    {
+      "key": "createos_placa_invalida",
+      "value": "ABC1234"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{createos_auth_access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "Health - CreateOSService (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/health",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Retorna status ok', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger - CreateOSService JSON (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/swagger/v1/swagger.json",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "swagger",
+                "v1",
+                "swagger.json"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Contem rota de abertura completa', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.paths).to.have.property('/api/ordens-servico/completa');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth0 - Obter Token (ROPC)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "https://{{auth0_domain}}/oauth/token",
+              "protocol": "https",
+              "host": [
+                "{{auth0_domain}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{auth0_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "{{auth0_username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{auth0_password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{auth0_audience}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var tokenResponse = pm.response.json();",
+                  "pm.test('Retorna access_token', function () {",
+                  "  pm.expect(tokenResponse).to.have.property('access_token');",
+                  "  pm.expect(tokenResponse.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('createos_auth_access_token', tokenResponse.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa sem Token (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"Cliente Sem Token\",\n    \"identificacao\": \"52998224725\",\n    \"email\": \"sem.token@oficina.com\"\n  },\n  \"veiculo\": {\n    \"placa\": \"AAA1A11\",\n    \"marca\": \"Fiat\",\n    \"modelo\": \"Argo\",\n    \"ano\": 2023,\n    \"renavam\": \"12345678901\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Servico Sem Token\",\n      \"descricao\": \"Tentativa sem autenticacao\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Filtro de Ar\",\n            \"fabricante\": \"Bosch\",\n            \"quantidadeDisponivel\": 10,\n            \"valorUnitario\": 25.5\n          },\n          \"quantidade\": 1\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Fluxo Principal",
+      "item": [
+        {
+          "name": "Criar Ordem de Servico Completa (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"{{createos_cliente_nome}}\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"{{createos_cliente_email}}\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Chevrolet\",\n    \"modelo\": \"Onix\",\n    \"ano\": 2023,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Revisao {{createos_stamp}}\",\n      \"descricao\": \"Revisao completa da ordem {{createos_stamp}}\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Oleo 5W30 {{createos_stamp}}\",\n            \"fabricante\": \"Mobil\",\n            \"quantidadeDisponivel\": 20,\n            \"valorUnitario\": 35.0\n          },\n          \"quantidade\": 4\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "const stamp = Date.now().toString().slice(-8);",
+                  "pm.collectionVariables.set('createos_stamp', stamp);",
+                  "pm.collectionVariables.set('createos_cliente_nome', 'Cliente CreateOS ' + stamp);",
+                  "pm.collectionVariables.set('createos_cliente_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('createos_cliente_email', 'createos.' + stamp + '@oficina.com');",
+                  "pm.collectionVariables.set('createos_veiculo_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));",
+                  "pm.collectionVariables.unset('createos_ordem_id');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Retorna ordemServicoId', function () {",
+                  "  pm.expect(response.ordemServicoId).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('createos_ordem_id', response.ordemServicoId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Fluxos Alternativos",
+      "item": [
+        {
+          "name": "Criar OS Completa com Cliente Duplicado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"{{createos_cliente_nome}}\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"{{createos_cliente_email}}\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Chevrolet\",\n    \"modelo\": \"Onix\",\n    \"ano\": 2023,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Revisao {{createos_stamp}}\",\n      \"descricao\": \"Revisao completa da ordem {{createos_stamp}}\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Oleo 5W30 Duplicado {{createos_stamp}}\",\n            \"fabricante\": \"Mobil\",\n            \"quantidadeDisponivel\": 20,\n            \"valorUnitario\": 35.0\n          },\n          \"quantidade\": 4\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de cliente duplicado', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toLowerCase()).to.include('cliente cadastrado');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa com Nome Vazio (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"{{createos_cliente_email}}\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Volkswagen\",\n    \"modelo\": \"Polo\",\n    \"ano\": 2022,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Servico Nome Vazio\",\n      \"descricao\": \"Descricao valida\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Insumo Nome Vazio\",\n            \"fabricante\": \"Bosch\",\n            \"quantidadeDisponivel\": 10,\n            \"valorUnitario\": 12.5\n          },\n          \"quantidade\": 1\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "const stamp = Date.now().toString().slice(-8);",
+                  "pm.collectionVariables.set('createos_cliente_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('createos_cliente_email', 'nome.vazio.' + stamp + '@oficina.com');",
+                  "pm.collectionVariables.set('createos_veiculo_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de nome obrigatorio', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toLowerCase()).to.include('nome completo');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa com Identificacao Invalida (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"Cliente CPF Invalido\",\n    \"identificacao\": \"{{createos_identificacao_invalida}}\",\n    \"email\": \"cpf.invalido@oficina.com\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Renault\",\n    \"modelo\": \"Kwid\",\n    \"ano\": 2021,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Servico CPF Invalido\",\n      \"descricao\": \"Descricao valida\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Insumo CPF Invalido\",\n            \"fabricante\": \"NGK\",\n            \"quantidadeDisponivel\": 8,\n            \"valorUnitario\": 19.9\n          },\n          \"quantidade\": 1\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "pm.collectionVariables.set('createos_veiculo_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de identificacao invalida', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toUpperCase()).to.include('CPF OU CNPJ');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa com Email Invalido (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"Cliente Email Invalido\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"{{createos_email_invalido}}\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Hyundai\",\n    \"modelo\": \"HB20\",\n    \"ano\": 2020,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Servico Email Invalido\",\n      \"descricao\": \"Descricao valida\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Insumo Email Invalido\",\n            \"fabricante\": \"Valeo\",\n            \"quantidadeDisponivel\": 12,\n            \"valorUnitario\": 18.75\n          },\n          \"quantidade\": 1\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "pm.collectionVariables.set('createos_cliente_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('createos_veiculo_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de email invalido', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toLowerCase()).to.include('email');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa com Placa Invalida (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"Cliente Placa Invalida\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"placa.invalida@oficina.com\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_placa_invalida}}\",\n    \"marca\": \"Toyota\",\n    \"modelo\": \"Yaris\",\n    \"ano\": 2022,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": [\n    {\n      \"nome\": \"Servico Placa Invalida\",\n      \"descricao\": \"Descricao valida\",\n      \"itensServico\": [\n        {\n          \"insumo\": {\n            \"nome\": \"Insumo Placa Invalida\",\n            \"fabricante\": \"Bosch\",\n            \"quantidadeDisponivel\": 10,\n            \"valorUnitario\": 17.5\n          },\n          \"quantidade\": 1\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "pm.collectionVariables.set('createos_cliente_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de placa invalida', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toLowerCase()).to.include('mercosul');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar OS Completa sem Servicos (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{createOSServiceBaseUrl}}/api/ordens-servico/completa",
+              "host": [
+                "{{createOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "completa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nomeCompleto\": \"Cliente Sem Servicos\",\n    \"identificacao\": \"{{createos_cliente_identificacao}}\",\n    \"email\": \"sem.servicos@oficina.com\"\n  },\n  \"veiculo\": {\n    \"placa\": \"{{createos_veiculo_placa}}\",\n    \"marca\": \"Nissan\",\n    \"modelo\": \"Versa\",\n    \"ano\": 2021,\n    \"renavam\": \"{{createos_veiculo_renavam}}\"\n  },\n  \"servicos\": []\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "pm.collectionVariables.set('createos_cliente_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('createos_veiculo_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('createos_veiculo_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Mensagem de servicos obrigatorios', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect((response.message || '').toLowerCase()).to.include('ao menos um servico');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

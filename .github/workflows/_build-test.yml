@@ -1,0 +1,26 @@
+name: "[Reusable] Build & Test"
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore "server/TechChallenge.Oficina.API.slnx"
+
+      - name: Build
+        run: dotnet build "server/TechChallenge.Oficina.API.slnx" -c Release --no-restore
+
+      - name: Test
+        run: dotnet test "server/TechChallenge.Oficina.API.slnx" -c Release --no-build

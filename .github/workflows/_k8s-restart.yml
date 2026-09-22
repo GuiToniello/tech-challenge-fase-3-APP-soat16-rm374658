@@ -1,0 +1,24 @@
+name: "[Reusable] Restart no K8S"
+# Dispara o workflow "K8s Apply" do repo K8S com restart-pods=true, para os pods puxarem as imagens novas (:latest)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar o K8s Apply no repo K8S
+        env:
+          GH_TOKEN: ${{ secrets.K8S_REPO_TOKEN }}
+          K8S_REPO: ${{ vars.K8S_REPO || 'GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658' }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret K8S_REPO_TOKEN não configurado (token com permissão Actions: write no repo $K8S_REPO)."
+            exit 1
+          fi
+          gh workflow run k8s-apply.yml --repo "$K8S_REPO" --ref main -f restart-pods=true
+          echo "K8s Apply disparado em https://github.com/$K8S_REPO/actions/workflows/k8s-apply.yml"

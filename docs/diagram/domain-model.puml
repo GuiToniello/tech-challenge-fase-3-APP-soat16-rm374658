@@ -1,0 +1,72 @@
+@startuml
+
+class Cliente {
+	+Id : Guid
+	+NomeCompleto : string
+	+Identificacao : string
+	+Email : string?
+}
+
+class Veiculo {
+	+Id : Guid
+	+Placa : string
+	+Marca : string
+	+Modelo : string
+	+Ano : int
+	+Renavam : string
+}
+
+class Insumo {
+	+Id : Guid
+	+Nome : string
+	+Fabricante : string
+	+QuantidadeDisponivel : int
+	+ValorUnitario : decimal
+}
+
+class Servico {
+	+Id : Guid
+	+Nome : string
+	+Descricao : string
+}
+
+class ItemServico {
+	+Quantidade : int
+}
+
+class OrdemServico {
+	+Id : Guid
+	+Status : StatusOrdemServico
+}
+
+class Orcamento {
+	+DataGeracao : DateTime
+	+ValorTotal : decimal
+}
+
+class OrcamentoServico {
+	+ServicoId : Guid
+	+NomeServico : string
+	+ValorTotal : decimal
+}
+
+class Indicador {
+	+TempoMedioExecucao : TimeSpan
+	+TempoMedioEntrega : TimeSpan
+}
+
+Cliente "1" --> "0..*" Veiculo
+Cliente "1" --> "0..*" OrdemServico
+Veiculo "1" --> "0..*" OrdemServico
+
+OrdemServico "1" *-- "1..*" Servico
+Servico "1" *-- "0..*" ItemServico
+ItemServico "*" --> "1" Insumo
+
+OrdemServico "1" *-- "0..1" Orcamento
+Orcamento "1" *-- "1..*" OrcamentoServico
+OrcamentoServico "*" --> "1" Servico : referencia
+
+Indicador ..> OrdemServico : calcula tempos
+
+@enduml

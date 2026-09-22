@@ -1,0 +1,27 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "1 - Frameworks & Drivers\\TechChallenge.Oficina.StatusService.API\\TechChallenge.Oficina.StatusService.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "1 - Frameworks & Drivers\\TechChallenge.Oficina.CreateOSService.API\\TechChallenge.Oficina.CreateOSService.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "1 - Frameworks & Drivers\\TechChallenge.Oficina.GetOSService.API\\TechChallenge.Oficina.GetOSService.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "1 - Frameworks & Drivers\\TechChallenge.Oficina.Monolith.API\\TechChallenge.Oficina.Monolith.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "1 - Frameworks & Drivers\\TechChallenge.Oficina.ApprovalService.API\\TechChallenge.Oficina.ApprovalService.API.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

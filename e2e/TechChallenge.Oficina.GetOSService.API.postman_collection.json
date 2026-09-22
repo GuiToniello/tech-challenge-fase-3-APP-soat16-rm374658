@@ -1,0 +1,1307 @@
+{
+  "info": {
+    "_postman_id": "f20fdb8d-3366-4b39-94e5-80b677f48f50",
+    "name": "TechChallenge Oficina GetOSService API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection isolada da GetOSService API. Provisiona massa propria via API principal, trata autenticacao dedicada e valida fluxos principal e alternativos do endpoint de listagem ordenada de ordens de servico."
+  },
+  "variable": [
+    {
+      "key": "getOSServiceBaseUrl",
+      "value": "http://localhost:7197"
+    },
+    {
+      "key": "oficinaApiBaseUrl",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "auth0_domain",
+      "value": "dev-mesy5gadx7cqn4i0.us.auth0.com"
+    },
+    {
+      "key": "auth0_client_id",
+      "value": "VJNHFAcEAUxr7D0PgmFA8paa01zSpj5C"
+    },
+    {
+      "key": "auth0_username",
+      "value": "guitoniello@gmail.com"
+    },
+    {
+      "key": "auth0_password",
+      "value": "P@ssw0rd"
+    },
+    {
+      "key": "auth0_audience_oficina",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "auth0_audience_getos",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "provisioning_auth_access_token",
+      "value": ""
+    },
+    {
+      "key": "getos_auth_access_token",
+      "value": ""
+    },
+    {
+      "key": "getos_stamp",
+      "value": ""
+    },
+    {
+      "key": "getos_identificacao",
+      "value": ""
+    },
+    {
+      "key": "getos_email",
+      "value": ""
+    },
+    {
+      "key": "getos_placa",
+      "value": ""
+    },
+    {
+      "key": "getos_renavam",
+      "value": ""
+    },
+    {
+      "key": "getos_cliente_id",
+      "value": ""
+    },
+    {
+      "key": "getos_veiculo_id",
+      "value": ""
+    },
+    {
+      "key": "getos_insumo_id",
+      "value": ""
+    },
+    {
+      "key": "getos_servico_id",
+      "value": ""
+    },
+    {
+      "key": "getos_ordem_recebida_id",
+      "value": ""
+    },
+    {
+      "key": "getos_ordem_diagnostico_id",
+      "value": ""
+    },
+    {
+      "key": "getos_ordem_aguardando_id",
+      "value": ""
+    },
+    {
+      "key": "getos_ordem_execucao_id",
+      "value": ""
+    },
+    {
+      "key": "getos_ordem_finalizada_id",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "Health - GetOSService (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{getOSServiceBaseUrl}}/health",
+              "host": [
+                "{{getOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Retorna status ok', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger - GetOSService JSON (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{getOSServiceBaseUrl}}/swagger/v1/swagger.json",
+              "host": [
+                "{{getOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "swagger",
+                "v1",
+                "swagger.json"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Contem rota de ordenacao de ordens', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.paths).to.have.property('/api/ordens-servico/ordenadas');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth0 - Token para Provisionamento (aud: oficina)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "https://{{auth0_domain}}/oauth/token",
+              "protocol": "https",
+              "host": [
+                "{{auth0_domain}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{auth0_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "{{auth0_username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{auth0_password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{auth0_audience_oficina}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var tokenResponse = pm.response.json();",
+                  "pm.test('Retorna access_token', function () {",
+                  "  pm.expect(tokenResponse).to.have.property('access_token');",
+                  "  pm.expect(tokenResponse.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('provisioning_auth_access_token', tokenResponse.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth0 - Token para GetOSService (aud: getos)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "https://{{auth0_domain}}/oauth/token",
+              "protocol": "https",
+              "host": [
+                "{{auth0_domain}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{auth0_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "{{auth0_username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{auth0_password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{auth0_audience_getos}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var tokenResponse = pm.response.json();",
+                  "pm.test('Retorna access_token', function () {",
+                  "  pm.expect(tokenResponse).to.have.property('access_token');",
+                  "  pm.expect(tokenResponse.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('getos_auth_access_token', tokenResponse.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Ordenadas sem Token (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{getOSServiceBaseUrl}}/api/ordens-servico/ordenadas",
+              "host": [
+                "{{getOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "ordenadas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Provisionamento da Massa (Isolado)",
+      "item": [
+        {
+          "name": "Criar Cliente Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/clientes",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeCompleto\": \"Cliente GetOS {{getos_stamp}}\",\n  \"identificacao\": \"{{getos_identificacao}}\",\n  \"email\": \"{{getos_email}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const digitos = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + letras[Math.floor(Math.random() * 26)] + digitos[Math.floor(Math.random() * 10)] + digitos[Math.floor(Math.random() * 10)];",
+                  "}",
+                  "function gerarDigitos(tamanho) {",
+                  "  let valor = '';",
+                  "  for (let i = 0; i < tamanho; i++) valor += Math.floor(Math.random() * 10);",
+                  "  return valor;",
+                  "}",
+                  "const stamp = Date.now().toString().slice(-8);",
+                  "pm.collectionVariables.set('getos_stamp', stamp);",
+                  "pm.collectionVariables.set('getos_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('getos_email', 'getos.' + stamp + '@oficina.test');",
+                  "pm.collectionVariables.set('getos_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('getos_renavam', gerarDigitos(11));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_cliente_id', response.id);",
+                  "pm.test('ClienteId salvo', function () { pm.expect(pm.collectionVariables.get('getos_cliente_id')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Veiculo Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/veiculos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "veiculos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placa\": \"{{getos_placa}}\",\n  \"marca\": \"Honda\",\n  \"modelo\": \"City\",\n  \"ano\": 2023,\n  \"renavam\": \"{{getos_renavam}}\",\n  \"clienteId\": \"{{getos_cliente_id}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_veiculo_id', response.id);",
+                  "pm.test('VeiculoId salvo', function () { pm.expect(pm.collectionVariables.get('getos_veiculo_id')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Insumo Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/insumos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "insumos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Insumo GetOS {{getos_stamp}}\",\n  \"fabricante\": \"Bosch\",\n  \"quantidadeDisponivel\": 40,\n  \"valorUnitario\": 19.9\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_insumo_id', response.id);",
+                  "pm.test('InsumoId salvo', function () { pm.expect(pm.collectionVariables.get('getos_insumo_id')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Servico Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/servicos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Servico GetOS {{getos_stamp}}\",\n  \"descricao\": \"Servico para testes do GetOS {{getos_stamp}}\",\n  \"itensServico\": [\n    {\n      \"insumoId\": \"{{getos_insumo_id}}\",\n      \"quantidade\": 1\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_servico_id', response.id);",
+                  "pm.test('ServicoId salvo', function () { pm.expect(pm.collectionVariables.get('getos_servico_id')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Fluxo Principal",
+      "item": [
+        {
+          "name": "Criar Ordem Recebida (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{getos_cliente_id}}\",\n  \"veiculoId\": \"{{getos_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{getos_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_ordem_recebida_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Ordem Em Diagnostico (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{getos_cliente_id}}\",\n  \"veiculoId\": \"{{getos_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{getos_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_ordem_diagnostico_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar Ordem para Em Diagnostico (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_diagnostico_id}}/em-diagnostico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_diagnostico_id}}",
+                "em-diagnostico"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Ordem Aguardando Aprovacao (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{getos_cliente_id}}\",\n  \"veiculoId\": \"{{getos_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{getos_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_ordem_aguardando_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardando - Alterar para Em Diagnostico (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_aguardando_id}}/em-diagnostico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_aguardando_id}}",
+                "em-diagnostico"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aguardando - Gerar Orcamento (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_aguardando_id}}/gerar-orcamento",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_aguardando_id}}",
+                "gerar-orcamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Ordem Em Execucao (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{getos_cliente_id}}\",\n  \"veiculoId\": \"{{getos_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{getos_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_ordem_execucao_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execucao - Alterar para Em Diagnostico (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_execucao_id}}/em-diagnostico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_execucao_id}}",
+                "em-diagnostico"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execucao - Gerar Orcamento (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_execucao_id}}/gerar-orcamento",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_execucao_id}}",
+                "gerar-orcamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execucao - Aprovar Orcamento (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_execucao_id}}/aprovar-orcamento",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_execucao_id}}",
+                "aprovar-orcamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execucao - Alterar para Em Execucao Novamente (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_execucao_id}}/em-execucao",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_execucao_id}}",
+                "em-execucao"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Fluxos Alternativos",
+      "item": [
+        {
+          "name": "Criar Ordem para Exclusao (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{getos_cliente_id}}\",\n  \"veiculoId\": \"{{getos_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{getos_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('getos_ordem_finalizada_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizada - Em Diagnostico (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_finalizada_id}}/em-diagnostico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_finalizada_id}}",
+                "em-diagnostico"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizada - Gerar Orcamento (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_finalizada_id}}/gerar-orcamento",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_finalizada_id}}",
+                "gerar-orcamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizada - Aprovar Orcamento (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_finalizada_id}}/aprovar-orcamento",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_finalizada_id}}",
+                "aprovar-orcamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizada - Alterar para Em Execucao Novamente (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_finalizada_id}}/em-execucao",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_finalizada_id}}",
+                "em-execucao"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizada - Alterar para Finalizada (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{getos_ordem_finalizada_id}}/finalizar",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{getos_ordem_finalizada_id}}",
+                "finalizar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Ordenadas - Somente Massa da Collection (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{provisioning_auth_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{getOSServiceBaseUrl}}/api/ordens-servico/ordenadas",
+              "host": [
+                "{{getOSServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "ordenadas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Retorna array', function () { pm.expect(Array.isArray(response)).to.eql(true); });",
+                  "var idsEsperados = [",
+                  "  pm.collectionVariables.get('getos_ordem_recebida_id'),",
+                  "  pm.collectionVariables.get('getos_ordem_diagnostico_id'),",
+                  "  pm.collectionVariables.get('getos_ordem_aguardando_id'),",
+                  "  pm.collectionVariables.get('getos_ordem_execucao_id')",
+                  "];",
+                  "var idFinalizada = pm.collectionVariables.get('getos_ordem_finalizada_id');",
+                  "var apenasDaCollection = response.filter(function (o) { return idsEsperados.indexOf(o.id) >= 0 || o.id === idFinalizada; });",
+                  "pm.test('Contem as 4 ordens ativas criadas', function () {",
+                  "  var idsRetornados = apenasDaCollection.map(function (o) { return o.id; });",
+                  "  idsEsperados.forEach(function (idEsperado) {",
+                  "    pm.expect(idsRetornados).to.include(idEsperado);",
+                  "  });",
+                  "});",
+                  "pm.test('Nao contem a ordem finalizada', function () {",
+                  "  var idsRetornados = apenasDaCollection.map(function (o) { return o.id; });",
+                  "  pm.expect(idsRetornados).to.not.include(idFinalizada);",
+                  "});",
+                  "var indexExecucao = apenasDaCollection.findIndex(function (o) { return o.id === pm.collectionVariables.get('getos_ordem_execucao_id'); });",
+                  "var indexAguardando = apenasDaCollection.findIndex(function (o) { return o.id === pm.collectionVariables.get('getos_ordem_aguardando_id'); });",
+                  "var indexDiagnostico = apenasDaCollection.findIndex(function (o) { return o.id === pm.collectionVariables.get('getos_ordem_diagnostico_id'); });",
+                  "var indexRecebida = apenasDaCollection.findIndex(function (o) { return o.id === pm.collectionVariables.get('getos_ordem_recebida_id'); });",
+                  "pm.test('Ordenacao por prioridade de status', function () {",
+                  "  pm.expect(indexExecucao).to.be.at.least(0);",
+                  "  pm.expect(indexAguardando).to.be.at.least(0);",
+                  "  pm.expect(indexDiagnostico).to.be.at.least(0);",
+                  "  pm.expect(indexRecebida).to.be.at.least(0);",
+                  "  pm.expect(indexExecucao).to.be.below(indexAguardando);",
+                  "  pm.expect(indexAguardando).to.be.below(indexDiagnostico);",
+                  "  pm.expect(indexDiagnostico).to.be.below(indexRecebida);",
+                  "});",
+                  "pm.test('Itens retornam dataAlteracao valida', function () {",
+                  "  apenasDaCollection.forEach(function (item) {",
+                  "    pm.expect(item.dataAlteracao).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+<Solution>
+  <Folder Name="/1 - Frameworks &amp; Drivers/">
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.Monolith.API/TechChallenge.Oficina.Monolith.API.csproj" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.DB/TechChallenge.Oficina.DB.csproj" Id="71fe5663-eba3-4094-a2e6-eafa02c7eae3" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.Email/TechChallenge.Oficina.Email.csproj" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.StatusService.API/TechChallenge.Oficina.StatusService.API.csproj" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.ApprovalService.API/TechChallenge.Oficina.ApprovalService.API.csproj" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.CreateOSService.API/TechChallenge.Oficina.CreateOSService.API.csproj" />
+    <Project Path="1 - Frameworks &amp; Drivers/TechChallenge.Oficina.GetOSService.API/TechChallenge.Oficina.GetOSService.API.csproj" />
+  </Folder>
+  <Folder Name="/2 - Interface Adapters/">
+    <Project Path="2 - Interface Adapters/TechChallenge.Oficina.Adapters/TechChallenge.Oficina.Adapters.csproj" />
+    <Project Path="2 - Interface Adapters/TechChallenge.Oficina.Controllers/TechChallenge.Oficina.Controllers.csproj" Id="bb799465-98f2-48ae-9a0a-74f7a928946a" />
+  </Folder>
+  <Folder Name="/3 - Application Business Rules/">
+    <Project Path="3 - Application Business Rules/TechChallenge.Oficina.UseCases/TechChallenge.Oficina.UseCases.csproj" Id="2b019e97-650e-4000-8045-53c2f28db89f" />
+  </Folder>
+  <Folder Name="/4 - Enterprise Business Rules/">
+    <Project Path="4 - Enterprise Business Rules/TechChallenge.Oficina.Entities/TechChallenge.Oficina.Entities.csproj" Id="6b121b56-1305-4206-b1a0-3512618ea6c0" />
+  </Folder>
+  <Folder Name="/ADR/">
+    <File Path="../docs/adr/ADR-001-Clean-Architecture.md" />
+    <File Path="../docs/adr/ADR-002-DDD-e-Entidades-Ricas.md" />
+    <File Path="../docs/adr/ADR-003-Value-Objects-Identificacao.md" />
+    <File Path="../docs/adr/ADR-004-Gateways-e-Persistencia.md" />
+    <File Path="../docs/adr/ADR-005-Separacao-Commands-Queries-ViewModels.md" />
+    <File Path="../docs/adr/ADR-006-AutoMapper-nos-UseCases.md" />
+    <File Path="../docs/adr/ADR-007-EFCore-com-PostgreSQL.md" />
+    <File Path="../docs/adr/ADR-008-Swagger-para-API.md" />
+    <File Path="../docs/adr/ADR-009-Migracoes-Automaticas-no-Startup.md" />
+    <File Path="../docs/adr/ADR-011-Envio-de-Email-de-Orcamento.md" />
+    <File Path="../docs/adr/ADR-012-Controle-de-Estoque-de-Insumos.md" />
+    <File Path="../docs/adr/ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md" />
+    <File Path="../docs/adr/INDICE.md" />
+  </Folder>
+  <Folder Name="/E2E/">
+    <File Path="../e2e/TechChallenge.Oficina.ApprovalService.API.postman_collection.json" />
+    <File Path="../e2e/TechChallenge.Oficina.CreateOSService.API.postman_collection.json" />
+    <File Path="../e2e/TechChallenge.Oficina.GetOSService.API.postman_collection.json" />
+    <File Path="../e2e/TechChallenge.Oficina.Monolith.API.postman_collection.json" />
+    <File Path="../e2e/TechChallenge.Oficina.StatusService.API.postman_collection.json" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/TechChallenge.Oficina.Monolith.API.Tests/TechChallenge.Oficina.Monolith.API.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.StatusService.API.Tests/TechChallenge.Oficina.StatusService.API.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.UseCases.Tests/TechChallenge.Oficina.UseCases.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.Adapters.Tests/TechChallenge.Oficina.Adapters.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.Controllers.Tests/TechChallenge.Oficina.Controllers.Tests.csproj" Id="62f6c073-70c9-4926-a4b3-f670efda32d0" />
+    <Project Path="Tests/TechChallenge.Oficina.Entities.Tests/TechChallenge.Oficina.Entities.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.DB.Tests/TechChallenge.Oficina.DB.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.Email.Tests/TechChallenge.Oficina.Email.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.Integration.Tests/TechChallenge.Oficina.Integration.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.CreateOSService.API.Tests/TechChallenge.Oficina.CreateOSService.API.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.GetOSService.API.Tests/TechChallenge.Oficina.GetOSService.API.Tests.csproj" />
+  </Folder>
+</Solution>
+

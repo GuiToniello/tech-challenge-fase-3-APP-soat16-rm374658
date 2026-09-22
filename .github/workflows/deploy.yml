@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy.yml"
+      - ".github/workflows/_build-test.yml"
+      - ".github/workflows/_build-push.yml"
+      - ".github/workflows/_k8s-restart.yml"
+
+permissions:
+  contents: read
+
+# Pushes na main rodam um de cada vez, na ordem: um push antigo não publica :latest depois de um mais novo
+concurrency:
+  group: ${{ github.event_name == 'push' && 'deploy-main' || format('deploy-pr-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  # PR: check obrigatório da main ("build-test / build-test"). Push: valida antes de publicar
+  build-test:
+    uses: ./.github/workflows/_build-test.yml
+
+  build-push:
+    needs: build-test
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/_build-push.yml
+    with:
+      image-tag: latest # os manifests do repo K8S usam :latest
+    secrets: inherit
+
+  k8s-restart:
+    needs: build-push
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/_k8s-restart.yml
+    secrets: inherit

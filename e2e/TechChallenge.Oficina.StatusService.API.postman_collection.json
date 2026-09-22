@@ -1,0 +1,746 @@
+{
+  "info": {
+    "_postman_id": "c3b546d6-5be6-4a21-a9a7-418ea677f7c8",
+    "name": "TechChallenge Oficina StatusService API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection isolada da StatusService API. Provisiona sua propria massa via API principal e valida os endpoints da API de status com autenticacao."
+  },
+  "variable": [
+    {
+      "key": "statusServiceBaseUrl",
+      "value": "http://localhost:7198"
+    },
+    {
+      "key": "oficinaApiBaseUrl",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "auth0_domain",
+      "value": "dev-mesy5gadx7cqn4i0.us.auth0.com"
+    },
+    {
+      "key": "auth0_client_id",
+      "value": "VJNHFAcEAUxr7D0PgmFA8paa01zSpj5C"
+    },
+    {
+      "key": "auth0_username",
+      "value": "guitoniello@gmail.com"
+    },
+    {
+      "key": "auth0_password",
+      "value": "P@ssw0rd"
+    },
+    {
+      "key": "auth0_audience",
+      "value": "http://localhost:7194"
+    },
+    {
+      "key": "auth_access_token",
+      "value": ""
+    },
+    {
+      "key": "status_stamp",
+      "value": ""
+    },
+    {
+      "key": "status_cliente_id",
+      "value": ""
+    },
+    {
+      "key": "status_veiculo_id",
+      "value": ""
+    },
+    {
+      "key": "status_insumo_id",
+      "value": ""
+    },
+    {
+      "key": "status_servico_id",
+      "value": ""
+    },
+    {
+      "key": "status_ordem_id",
+      "value": ""
+    },
+    {
+      "key": "status_identificacao",
+      "value": ""
+    },
+    {
+      "key": "status_email",
+      "value": ""
+    },
+    {
+      "key": "status_placa",
+      "value": ""
+    },
+    {
+      "key": "status_renavam",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "Health - StatusService (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/health",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Retorna status ok', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger - StatusService JSON (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/swagger/v1/swagger.json",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "swagger",
+                "v1",
+                "swagger.json"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Contem rota de acompanhamento', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.paths).to.have.property('/api/status/ordens-servico/{id}/acompanhamento');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth0 - Obter Token (ROPC)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "https://{{auth0_domain}}/oauth/token",
+              "protocol": "https",
+              "host": [
+                "{{auth0_domain}}"
+              ],
+              "path": [
+                "oauth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{auth0_client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "{{auth0_username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{auth0_password}}",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid profile email",
+                  "type": "text"
+                },
+                {
+                  "key": "audience",
+                  "value": "{{auth0_audience}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var tokenResponse = pm.response.json();",
+                  "pm.test('Retorna access_token', function () {",
+                  "  pm.expect(tokenResponse).to.have.property('access_token');",
+                  "  pm.expect(tokenResponse.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('auth_access_token', tokenResponse.access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Provisionamento da Massa",
+      "item": [
+        {
+          "name": "Criar Cliente Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/clientes",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeCompleto\": \"Cliente StatusService {{status_stamp}}\",\n  \"identificacao\": \"{{status_identificacao}}\",\n  \"email\": \"{{status_email}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "function gerarPlacaMercosul() {",
+                  "  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "  const numeros = '0123456789';",
+                  "  return letras[Math.floor(Math.random() * letras.length)] +",
+                  "    letras[Math.floor(Math.random() * letras.length)] +",
+                  "    letras[Math.floor(Math.random() * letras.length)] +",
+                  "    numeros[Math.floor(Math.random() * numeros.length)] +",
+                  "    letras[Math.floor(Math.random() * letras.length)] +",
+                  "    numeros[Math.floor(Math.random() * numeros.length)] +",
+                  "    numeros[Math.floor(Math.random() * numeros.length)];",
+                  "}",
+                  "function gerarNumero(tamanho) {",
+                  "  let valor = '';",
+                  "  while (valor.length < tamanho) {",
+                  "    valor += Math.floor(Math.random() * 10).toString();",
+                  "  }",
+                  "  return valor;",
+                  "}",
+                  "const stamp = Date.now().toString();",
+                  "pm.collectionVariables.set('status_stamp', stamp);",
+                  "pm.collectionVariables.set('status_identificacao', gerarCpfValido());",
+                  "pm.collectionVariables.set('status_email', 'statusservice+' + stamp + '@example.com');",
+                  "pm.collectionVariables.set('status_placa', gerarPlacaMercosul());",
+                  "pm.collectionVariables.set('status_renavam', gerarNumero(11));",
+                  "pm.collectionVariables.unset('status_cliente_id');",
+                  "pm.collectionVariables.unset('status_veiculo_id');",
+                  "pm.collectionVariables.unset('status_insumo_id');",
+                  "pm.collectionVariables.unset('status_servico_id');",
+                  "pm.collectionVariables.unset('status_ordem_id');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Cliente criado com id', function () {",
+                  "  pm.expect(response.id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('status_cliente_id', response.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Veiculo Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/veiculos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "veiculos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placa\": \"{{status_placa}}\",\n  \"marca\": \"Toyota\",\n  \"modelo\": \"Corolla\",\n  \"ano\": 2024,\n  \"renavam\": \"{{status_renavam}}\",\n  \"clienteId\": \"{{status_cliente_id}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('status_veiculo_id', response.id);",
+                  "pm.test('Veiculo criado', function () { pm.expect(response.id).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Insumo Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/insumos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "insumos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Insumo StatusService {{status_stamp}}\",\n  \"fabricante\": \"Fornecedor StatusService\",\n  \"quantidadeDisponivel\": 15,\n  \"valorUnitario\": 49.9\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('status_insumo_id', response.id);",
+                  "pm.test('Insumo criado', function () { pm.expect(response.id).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Servico Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/servicos",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Servico StatusService {{status_stamp}}\",\n  \"descricao\": \"Servico base para validar a API de status\",\n  \"itensServico\": [\n    {\n      \"insumoId\": \"{{status_insumo_id}}\",\n      \"quantidade\": 1\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('status_servico_id', response.id);",
+                  "pm.test('Servico criado', function () { pm.expect(response.id).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Ordem de Servico Base (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{status_cliente_id}}\",\n  \"veiculoId\": \"{{status_veiculo_id}}\",\n  \"servicoIds\": [\n    \"{{status_servico_id}}\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('status_ordem_id', response.id);",
+                  "pm.test('Ordem criada', function () { pm.expect(response.id).to.be.a('string').and.not.empty; });",
+                  "pm.test('Ordem criada inicia como recebida', function () { pm.expect(response.status).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Fluxo Principal StatusService",
+      "item": [
+        {
+          "name": "Obter Acompanhamento Inicial (200)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/api/status/ordens-servico/{{status_ordem_id}}/acompanhamento",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "acompanhamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Retorna a ordem consultada', function () { pm.expect(response.id).to.eql(pm.collectionVariables.get('status_ordem_id')); });",
+                  "pm.test('Status inicial recebida', function () { pm.expect(response.status).to.eql(1); });",
+                  "pm.test('Historico inicial existe', function () { pm.expect(response.historicoStatus).to.be.an('array').with.lengthOf.at.least(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar para Em Diagnostico via API Principal (200)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{status_ordem_id}}/em-diagnostico",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "em-diagnostico"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Status alterado para em diagnostico', function () { pm.expect(response.status).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Acompanhamento Em Diagnostico (200)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/api/status/ordens-servico/{{status_ordem_id}}/acompanhamento",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "acompanhamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Status em diagnostico refletido na StatusService', function () { pm.expect(response.status).to.eql(2); });",
+                  "pm.test('Descricao do status preenchida', function () { pm.expect(response.statusDescricao).to.be.a('string').and.not.empty; });",
+                  "pm.test('Historico contem duas transicoes', function () { pm.expect(response.historicoStatus).to.be.an('array').with.lengthOf.at.least(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar para Em Execucao via API Principal (200)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/ordens-servico/{{status_ordem_id}}/em-execucao",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "em-execucao"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Status alterado para em execucao', function () { pm.expect(response.status).to.eql(4); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Acompanhamento Em Execucao (200)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/api/status/ordens-servico/{{status_ordem_id}}/acompanhamento",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "acompanhamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Status final do fluxo principal', function () { pm.expect(response.status).to.eql(4); });",
+                  "pm.test('Historico acompanha as mudancas', function () { pm.expect(response.historicoStatus).to.be.an('array').with.lengthOf.at.least(3); });",
+                  "pm.test('Ultimo status do historico e em execucao', function () {",
+                  "  var ultimo = response.historicoStatus[response.historicoStatus.length - 1];",
+                  "  pm.expect(ultimo.status).to.eql(4);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Fluxos Alternativos",
+      "item": [
+        {
+          "name": "Acompanhamento Sem Token (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/api/status/ordens-servico/{{status_ordem_id}}/acompanhamento",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "ordens-servico",
+                "{{status_ordem_id}}",
+                "acompanhamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Acompanhamento de Ordem Inexistente (404)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/api/status/ordens-servico/00000000-0000-0000-0000-000000000000/acompanhamento",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status",
+                "ordens-servico",
+                "00000000-0000-0000-0000-000000000000",
+                "acompanhamento"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+                  "var response = pm.response.json();",
+                  "pm.test('Mensagem de erro presente', function () { pm.expect(response.message).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

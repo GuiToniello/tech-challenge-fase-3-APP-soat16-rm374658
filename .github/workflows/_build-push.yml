@@ -1,0 +1,55 @@
+name: "[Reusable] Build & Push Images"
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        description: Tag aplicada às 5 imagens publicadas no ECR
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    concurrency:
+      # Fora da main usa um grupo próprio: falha no bloqueio abaixo sem cancelar um push legítimo pendente
+      group: ${{ github.ref == 'refs/heads/main' && 'ecr-push' || format('ecr-push-blocked-{0}', github.run_id) }}
+      cancel-in-progress: false
+    env:
+      REGISTRY_PREFIX: ${{ vars.ECR_REGISTRY }}/
+      IMAGE_TAG: ${{ inputs.image-tag }}
+    steps:
+      # push só a partir da main, mesmo quando disparado manualmente em outra branch
+      - name: Bloquear push fora da main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::O push das imagens só pode rodar a partir da branch main (ref atual: $GITHUB_REF)"
+          exit 1
+
+      - name: Conferir ECR_REGISTRY
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+        run: |
+          if [ -z "$ECR_REGISTRY" ]; then
+            echo "::error::Variable ECR_REGISTRY não configurada (ex.: 903936907231.dkr.ecr.us-east-1.amazonaws.com)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build images
+        run: docker compose build api approval-api createos-api getos-api status-api
+
+      - name: Push images
+        run: docker compose push api approval-api createos-api getos-api status-api
