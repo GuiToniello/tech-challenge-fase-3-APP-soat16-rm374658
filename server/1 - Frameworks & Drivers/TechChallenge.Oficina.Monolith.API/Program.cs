@@ -91,7 +91,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok - monolith" })).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok - monolith teste" })).AllowAnonymous();
 app.MapClienteEndpoints();
 app.MapIndicadoresEndpoints();
 app.MapInsumoEndpoints();
