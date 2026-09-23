@@ -278,7 +278,7 @@ Na Fase 3, o projeto está dividido em quatro repositórios. Este (**APP**) guar
 | Repositório | Responsabilidade |
 |---|---|
 | **APP** (este) | Código .NET, testes, imagens Docker e push para o ECR |
-| [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) | VPC, Amazon EKS, addons (`ingress-nginx`, Metrics Server) e manifests Kubernetes das APIs. Também gera o Secret com a connection string do RDS e a chave do Resend |
+| [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) | VPC, Amazon EKS, Amazon API Gateway (acesso externo às APIs), addons (Metrics Server) e manifests Kubernetes das APIs. Também gera o Secret com a connection string do RDS e a chave do Resend |
 | [DB](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658) | Amazon RDS PostgreSQL. O schema é criado pelas migrations das APIs, no startup (ADR-009) |
 | LAMBDA | Função Lambda do projeto |
 
@@ -302,7 +302,8 @@ flowchart LR
 | Item | Valor |
 |---|---|
 | Imagens | `903936907231.dkr.ecr.us-east-1.amazonaws.com/techchallenge-oficina-{monolith,approval,createos,getos,status}:latest`, os mesmos nomes do `docker-compose.yml`. Os manifests do repo K8S usam `:latest` com `imagePullPolicy: Always` |
-| Porta e health | Todas as APIs escutam em `8080` e expõem `/health` (probes do K8S) |
+| Porta e health | Todas as APIs escutam em `8080` e expõem `/health` sem autenticação (probes do K8S e health check do NLB do API Gateway) |
+| Rotas | As rotas ficam na raiz (`/api/...` e `/health`), sem `PathBase`. O API Gateway do repo K8S recebe `/<api>/...` (`/monolith`, `/approval`, `/createos`, `/getos` e `/status`) e remove o prefixo antes de encaminhar |
 | Configuração | Em AWS, `DatabaseSettings__ConnectionString` e `ResendSettings__ApiKey` vêm do Secret `oficina-api-secrets`, gerado pelo repo K8S. Os ConfigMaps do repo K8S definem só `ASPNETCORE_*`, `AllowedHosts` e `Logging`. `AuthSettings` e o restante de `ResendSettings` (`FromEmail`, `SendEmailOnStatusChange`) vêm do `appsettings.json` da imagem |
 | Banco | As migrations do EF Core rodam no startup de 4 das 5 APIs (Monolith, CreateOS, GetOS e Status). A ApprovalService não aplica migrations. Com o RDS novo (vazio), as tabelas são criadas quando as APIs sobem |
 
@@ -362,7 +363,7 @@ Nessa seção, você encontra observações gerais.
   - importe as collections no Postman
   - cada API tem um collection
   - Em `variables`, altere para apontar a URL para onde está rodando o projeto.
-  - Na AWS, use o hostname do Load Balancer do ingress (repo K8S) com o prefixo de cada API: `http://<hostname>/monolith`, `/approval`, `/createos`, `/getos` e `/status`. `oficinaApiBaseUrl` deve apontar para `http://<hostname>/monolith`.
+  - Na AWS, use a URL do API Gateway (output `api_gateway_endpoint` da foundation do repo K8S) com o prefixo de cada API: `https://<id>.execute-api.us-east-1.amazonaws.com/monolith`, `/approval`, `/createos`, `/getos` e `/status`. `oficinaApiBaseUrl` deve apontar para `https://<id>.execute-api.us-east-1.amazonaws.com/monolith`. O endpoint só aceita HTTPS, e o Swagger UI não abre atrás do prefixo (use as collections).
 
 - Para o envio de e-mails, é preciso configurar `ApiKey` no appsettings.json ou `ResendSettings__ApiKey` para container
 
