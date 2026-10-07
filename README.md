@@ -64,7 +64,9 @@ O `Authority` aponta para o domínio Auth0, que expõe o endpoint `/.well-known/
 
 Todos os endpoints exigem autenticação por padrão (política de fallback `RequireAuthenticatedUser`). O único endpoint público é `/health`.
 
-**Você não precisa criar uma conta no Auth0.** A Collection do Postman em `/e2e` já possui um request configurado com as credenciais de demonstração para obter o token de acesso via Client Credentials Flow.
+**Você não precisa criar uma conta no Auth0.** A Collection do Postman em `/e2e` já possui um request configurado com as credenciais de demonstração para obter o token de acesso via password grant (Resource Owner Password).
+
+Na AWS, o API Gateway (repo K8S) tem um Lambda authorizer (repo LAMBDA) que exige, além do JWT válido, a claim `cpf` do cliente. Esse token é gerado pela Lambda `POST /auth/token` (`{"email","senha","cpf"}`), que confere o cliente no banco e pede ao Auth0 o JWT já com a claim. Só o cadastro de cliente (`POST /monolith/api/clientes`) aceita o token direto do Auth0, sem `cpf`. O código das APIs não muda: elas continuam validando o JWT normalmente.
 
 ### 2.3. CQRS (CQS)
 
@@ -280,9 +282,9 @@ Na Fase 3, o projeto está dividido em quatro repositórios. Este (**APP**) guar
 | **APP** (este) | Código .NET, testes, imagens Docker e push para o ECR |
 | [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) | VPC, Amazon EKS, Amazon API Gateway (acesso externo às APIs), addons (Metrics Server) e manifests Kubernetes das APIs. Também gera o Secret com a connection string do RDS e a chave do Resend |
 | [DB](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658) | Amazon RDS PostgreSQL. O schema é criado pelas migrations das APIs, no startup (ADR-009) |
-| LAMBDA | Função Lambda do projeto |
+| [LAMBDA](https://github.com/GuiToniello/tech-challenge-fase-3-LAMBDA-soat16-rm374658) | Lambda authorizer do API Gateway (JWT do Auth0 com a claim `cpf`) e Lambda `POST /auth/token`, que gera o JWT com o CPF do cliente |
 
-Ordem de deploy entre os repositórios: **K8S** Bootstrap → **DB** Bootstrap → **APP** Bootstrap (imagens no ECR) → **K8S** K8s Apply. O último passo é disparado automaticamente por este repositório (seção 7). O APP não tem nada a destruir: o ECR é criado manualmente e fica fora de qualquer `destroy`.
+Ordem de deploy entre os repositórios: **K8S** Bootstrap → **DB** Bootstrap → **APP** Bootstrap (imagens no ECR) / **LAMBDA** → **K8S** K8s Apply. O último passo é disparado automaticamente por este repositório (seção 7). O APP não tem nada a destruir: o ECR é criado manualmente e fica fora de qualquer `destroy`.
 
 ```mermaid
 flowchart LR
@@ -363,7 +365,12 @@ Nessa seção, você encontra observações gerais.
   - importe as collections no Postman
   - cada API tem um collection
   - Em `variables`, altere para apontar a URL para onde está rodando o projeto.
-  - Na AWS, use a URL do API Gateway (output `api_gateway_endpoint` da foundation do repo K8S) com o prefixo de cada API: `https://<id>.execute-api.us-east-1.amazonaws.com/monolith`, `/approval`, `/createos`, `/getos` e `/status`. `oficinaApiBaseUrl` deve apontar para `https://<id>.execute-api.us-east-1.amazonaws.com/monolith`. O endpoint só aceita HTTPS, e o Swagger UI não abre atrás do prefixo (use as collections).
+  - Na AWS, importe também o environment `e2e/AWS.postman_environment.json`, selecione-o e preencha só `gatewayUrl` com a URL do API Gateway (output `api_gateway_endpoint` da foundation do repo K8S). Ele monta as URLs de cada API com o prefixo do gateway (`/monolith`, `/approval`, `/createos`, `/getos` e `/status`) e o `tokenUrl` (`/auth/token`). O endpoint só aceita HTTPS, e o Swagger UI não abre atrás do prefixo (use as collections).
+  - O "00 - Setup" de cada collection:
+    1. pega o token direto do Auth0;
+    2. cadastra um cliente com ele;
+    3. gera, pela Lambda `/auth/token`, o JWT com a claim `cpf` desse cliente, usado em todos os requests seguintes.
+  - Rodando local (sem gateway), `tokenUrl` fica vazio: a geração pela Lambda é pulada e a collection segue com o token direto do Auth0.
 
 - Para o envio de e-mails, é preciso configurar `ApiKey` no appsettings.json ou `ResendSettings__ApiKey` para container
 

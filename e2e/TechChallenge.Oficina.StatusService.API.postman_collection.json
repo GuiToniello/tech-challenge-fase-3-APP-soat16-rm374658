@@ -77,6 +77,14 @@
     {
       "key": "status_renavam",
       "value": ""
+    },
+    {
+      "key": "tokenUrl",
+      "value": ""
+    },
+    {
+      "key": "token_cpf",
+      "value": ""
     }
   ],
   "auth": {
@@ -120,41 +128,6 @@
                   "pm.test('Retorna status ok', function () {",
                   "  var response = pm.response.json();",
                   "  pm.expect(response.status).to.eql('ok');",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Swagger - StatusService JSON (200)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "url": {
-              "raw": "{{statusServiceBaseUrl}}/swagger/v1/swagger.json",
-              "host": [
-                "{{statusServiceBaseUrl}}"
-              ],
-              "path": [
-                "swagger",
-                "v1",
-                "swagger.json"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Contem rota de acompanhamento', function () {",
-                  "  var response = pm.response.json();",
-                  "  pm.expect(response.paths).to.have.property('/api/status/ordens-servico/{id}/acompanhamento');",
                   "});"
                 ]
               }
@@ -234,6 +207,151 @@
                   "  pm.expect(tokenResponse.access_token).to.be.a('string').and.not.empty;",
                   "});",
                   "pm.collectionVariables.set('auth_access_token', tokenResponse.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastrar Cliente do Token (201)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Cliente cujo CPF vai na geração do JWT pela Lambda. O cadastro aceita o token direto do Auth0 (sem cpf)",
+                  "function gerarCpfValido() {",
+                  "  const base = [];",
+                  "  for (let i = 0; i < 9; i++) base.push(Math.floor(Math.random() * 10));",
+                  "  let soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (10 - i);",
+                  "  let resto = soma % 11;",
+                  "  const d1 = resto < 2 ? 0 : 11 - resto;",
+                  "  soma = 0;",
+                  "  for (let i = 0; i < 9; i++) soma += base[i] * (11 - i);",
+                  "  soma += d1 * 2;",
+                  "  resto = soma % 11;",
+                  "  const d2 = resto < 2 ? 0 : 11 - resto;",
+                  "  return [...base, d1, d2].join('');",
+                  "}",
+                  "pm.collectionVariables.set('token_cpf', gerarCpfValido());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oficinaApiBaseUrl}}/api/clientes",
+              "host": [
+                "{{oficinaApiBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomeCompleto\": \"Cliente do Token Postman\",\n  \"identificacao\": \"{{token_cpf}}\",\n  \"email\": \"{{auth0_username}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lambda - Gerar JWT com CPF (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sem API Gateway (execução local) não há Lambda: a collection segue com o token direto do Auth0",
+                  "if (!pm.variables.get('tokenUrl')) {",
+                  "  console.log('tokenUrl vazio: geração do JWT pela Lambda pulada.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  var token = pm.response.json().access_token;",
+                  "  pm.test('Retorna access_token', function () { pm.expect(token).to.be.a('string').and.not.empty; });",
+                  "  // JWT com a claim cpf: usado em todos os requests seguintes",
+                  "  pm.collectionVariables.set('auth_access_token', token);",
+                  "} else {",
+                  "  console.log('Falha ao gerar o JWT na Lambda. Status:', pm.response.code, 'Body:', pm.response.text());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{tokenUrl}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{auth0_username}}\",\n  \"senha\": \"{{auth0_password}}\",\n  \"cpf\": \"{{token_cpf}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Swagger - StatusService JSON (200)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{statusServiceBaseUrl}}/swagger/v1/swagger.json",
+              "host": [
+                "{{statusServiceBaseUrl}}"
+              ],
+              "path": [
+                "swagger",
+                "v1",
+                "swagger.json"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Contem rota de acompanhamento', function () {",
+                  "  var response = pm.response.json();",
+                  "  pm.expect(response.paths).to.have.property('/api/status/ordens-servico/{id}/acompanhamento');",
+                  "});"
                 ]
               }
             }
