@@ -62,7 +62,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok - status service" })).AllowAnonymous();
 app.MapStatusOrdemServicoEndpoints();
 
 await app.RunAsync();
