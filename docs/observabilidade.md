@@ -242,4 +242,4 @@ O `integracao.falha` com `Operacao` = `notificacao_status` só pode aparecer qua
 - **Mudança no contrato**, como um evento, uma propriedade ou um valor novo ou renomeado:
   1. altere o código (`OrdemServicoLogEventos.cs` e o ponto de log);
   2. atualize este documento;
-  3. atualize o Terraform do repo K8S (`infra/addons/datadog/`) e o `infra/DATADOG.md` de lá, se a mudança afetar métricas, monitores ou o dashboard.
+  3. atualize o Terraform do repo K8S (`infra/addons/modules/datadog/`) e o `infra/DATADOG.md` de lá, se a mudança afetar métricas, monitores ou o dashboard.
