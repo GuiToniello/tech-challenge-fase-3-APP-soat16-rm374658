@@ -1,5 +1,7 @@
 # ADRs - Architecture Decision Records
 
+A visão geral da arquitetura (diagramas de componentes e de sequência) e o índice das RFCs estão em [docs/arquitetura.md](../arquitetura.md).
+
 ## Índice
 
 1. [ADR-001: Clean Architecture com Folder-by-Feature](ADR-001-Clean-Architecture.md)
@@ -15,6 +17,14 @@
 11. [ADR-012: Controle de Estoque de Insumos](ADR-012-Controle-de-Estoque-de-Insumos.md)
 12. [ADR-013: Estratégia de Tratamento de Erros em Duas Camadas](ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md)
 13. [ADR-014: Observabilidade com Datadog](ADR-014-Observabilidade-com-Datadog.md)
+14. [ADR-015: Comunicação Síncrona (HTTP/REST) via API Gateway](ADR-015-Comunicacao-Sincrona-via-API-Gateway.md)
+
+### ADRs em outros repositórios
+
+A numeração das ADRs é única entre os quatro repositórios. As decisões de infraestrutura ficam no repositório que as implementa:
+
+15. [ADR-016: Escalabilidade das APIs com HPA](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658/blob/main/docs/adr/ADR-016-Escalabilidade-com-HPA.md) (repo K8S)
+16. [ADR-017: PostgreSQL no Amazon RDS e Modelo de Dados](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658/blob/main/docs/adr/ADR-017-PostgreSQL-no-Amazon-RDS-e-Modelo-de-Dados.md) (repo DB)
 
 ## Resumo de Contextos
 
@@ -33,6 +43,13 @@
 ### Contexto de Infraestrutura de Dados
 - **ADR-007**: EF Core + PostgreSQL com migrations versionadas
 - **ADR-009**: Migrações automáticas no startup
+- **ADR-017** (repo DB): PostgreSQL no Amazon RDS, com justificativa formal, diagrama ER e relacionamentos
+
+### Contexto de Comunicação entre Componentes
+- **ADR-015**: Comunicação síncrona (HTTP/REST) com entrada única pelo API Gateway, APIs compartilhando o banco e sem mensageria
+
+### Contexto de Escalabilidade
+- **ADR-016** (repo K8S): HPA por API, de 1 a 10 pods conforme CPU e memória, com os nós do cluster fixos
 
 ### Contexto de Exposição da API
 - **ADR-008**: Swagger para documentação auto-atualizada

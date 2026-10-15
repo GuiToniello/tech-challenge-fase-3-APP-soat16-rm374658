@@ -21,12 +21,15 @@ Vídeo completo da Fase 2 [aqui](https://youtu.be/BRWWTNrfGdY).
 
 Nessa seção, será descrita a arquitetura em alto nível e organização da solução.
 
+A visão geral do sistema inteiro está em [docs/arquitetura.md](./docs/arquitetura.md): diagrama de componentes (nuvem, APIs, banco e monitoramento), diagramas de sequência da autenticação e da abertura de OS, e o índice das RFCs e ADRs dos quatro repositórios.
+
+A imagem abaixo mostra a organização interna do código de cada API (Clean Architecture, ADR-001).
 
 ![Arquitetura](./docs/diagram/arquitetura.png)
 
 ### 2.1. Visão Geral
 
-As decisões arquiteturais estão documentadas individualmente como ADRs (Architecture Decision Records) em `docs/adr/`.
+As decisões arquiteturais estão documentadas individualmente como ADRs (Architecture Decision Records) em `docs/adr/`. As ADRs de infraestrutura (ADR-016 e ADR-017) e as RFCs (Request for Comments: propostas que compararam opções antes de uma decisão) ficam no repositório que implementa cada decisão e também aparecem nas tabelas abaixo.
 
 Abaixo, você encontra um resumo.
 
@@ -45,6 +48,15 @@ Abaixo, você encontra um resumo.
 | ADR-012 — Controle de Estoque de Insumos | Verifica estoque ao gerar orçamento (sem reserva) e debita automaticamente ao aprovar. Lança `DomainException` se houver estoque insuficiente em qualquer etapa. | [ver](./docs/adr/ADR-012-Controle-de-Estoque-de-Insumos.md) |
 | ADR-013 — Tratamento de Erros em Duas Camadas | Erros de negócio esperados são tratados nos controllers com resposta HTTP semântica (4xx). Erros inesperados são capturados pelo middleware global, evitando vazamento de stack trace. | [ver](./docs/adr/ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md) |
 | ADR-014 — Observabilidade com Datadog | As APIs escrevem logs JSON no stdout (Serilog) com eventos de negócio, e o tracer é injetado no cluster, sem mudar a imagem. Métricas de negócio derivadas dos logs, monitores, synthetics e dashboard ficam em Terraform no repo K8S. | [ver](./docs/adr/ADR-014-Observabilidade-com-Datadog.md) |
+| ADR-015 — Comunicação Síncrona via API Gateway | Os clientes falam com as APIs por HTTPS (REST e JSON), sempre pelo API Gateway. As APIs não chamam umas às outras: compartilham o mesmo banco. Não há filas nem mensageria. | [ver](./docs/adr/ADR-015-Comunicacao-Sincrona-via-API-Gateway.md) |
+| ADR-016 — Escalabilidade com HPA (repo K8S) | Cada API tem um HPA que mantém de 1 a 10 pods conforme o uso de CPU (alvo de 30%) e de memória (alvo de 150%), medido pelo Metrics Server. Os 2 nós do cluster são fixos. | [ver](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658/blob/main/docs/adr/ADR-016-Escalabilidade-com-HPA.md) |
+| ADR-017 — PostgreSQL no Amazon RDS e Modelo de Dados (repo DB) | Justificativa formal da escolha do PostgreSQL no Amazon RDS, com o diagrama ER e a explicação dos relacionamentos entre as tabelas. | [ver](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658/blob/main/docs/adr/ADR-017-PostgreSQL-no-Amazon-RDS-e-Modelo-de-Dados.md) |
+
+| RFC | Resumo | Link |
+|-----|--------|------|
+| RFC-001 — Escolha da nuvem (repo K8S) | Compara AWS, Azure e Google Cloud. Resultado: AWS, na região `us-east-1`. | [ver](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658/blob/main/docs/rfc/RFC-001-Escolha-da-Nuvem.md) |
+| RFC-002 — Escolha do banco de dados (repo DB) | Compara PostgreSQL, Aurora, MySQL, SQL Server, DynamoDB, MongoDB e PostgreSQL dentro do EKS. Resultado: PostgreSQL no Amazon RDS. | [ver](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658/blob/main/docs/rfc/RFC-002-Escolha-do-Banco-de-Dados.md) |
+| RFC-003 — Estratégia de autenticação (repo LAMBDA) | Compara onde validar o token e como gravar o CPF nele. Resultado: Lambda authorizer exigindo a claim `cpf`, com o JWT emitido pelo Auth0. | [ver](https://github.com/GuiToniello/tech-challenge-fase-3-LAMBDA-soat16-rm374658/blob/main/docs/rfc/RFC-003-Estrategia-de-Autenticacao.md) |
 
 ### 2.2. Autenticação
 
@@ -63,11 +75,11 @@ A API valida cada requisição verificando o JWT no header `Authorization: Beare
 
 O `Authority` aponta para o domínio Auth0, que expõe o endpoint `/.well-known/openid-configuration` usado pelo middleware para buscar as chaves públicas de validação. O `Audience` identifica esta API junto ao Auth0.
 
-Todos os endpoints exigem autenticação por padrão (política de fallback `RequireAuthenticatedUser`). Os únicos endpoints públicos são `/health` e `/health/ready`, que também verifica o banco (seção 6.4).
+Todos os endpoints exigem autenticação por padrão (política de fallback `RequireAuthenticatedUser`). Os únicos endpoints públicos são `/health` e `/health/ready`, que também verifica o banco (seção 6.3).
 
 **Você não precisa criar uma conta no Auth0.** A Collection do Postman em `/e2e` já possui um request configurado com as credenciais de demonstração para obter o token de acesso via password grant (Resource Owner Password).
 
-Na AWS, o API Gateway (repo K8S) tem um Lambda authorizer (repo LAMBDA) que exige, além do JWT válido, a claim `cpf` do cliente. Esse token é gerado pela Lambda `POST /auth/token` (`{"email","senha","cpf"}`), que confere o cliente no banco e pede ao Auth0 o JWT já com a claim. Só o cadastro de cliente (`POST /monolith/api/clientes`) aceita o token direto do Auth0, sem `cpf`. O código das APIs não muda: elas continuam validando o JWT normalmente.
+Na AWS, o API Gateway (repo K8S) tem um Lambda authorizer (repo LAMBDA) que exige, além do JWT válido, a claim `cpf` do cliente. Esse token é gerado pela Lambda `POST /auth/token` (`{"email","senha","cpf"}`), que confere o cliente no banco e pede ao Auth0 o JWT já com a claim. Só o cadastro de cliente (`POST /monolith/api/clientes`) aceita o token direto do Auth0, sem `cpf`. O código das APIs não muda: elas continuam validando o JWT normalmente. O fluxo está no [diagrama de sequência da autenticação](./docs/arquitetura.md#3-diagrama-de-sequência-autenticação), e as opções avaliadas, na [RFC-003](https://github.com/GuiToniello/tech-challenge-fase-3-LAMBDA-soat16-rm374658/blob/main/docs/rfc/RFC-003-Estrategia-de-Autenticacao.md) do repo LAMBDA.
 
 ### 2.3. CQRS (CQS)
 
@@ -238,7 +250,7 @@ Se você estiver rodando em container, não é preciso configurar mais nada, ape
 
 Se você está rodando o Postgres localmente, com instância não containerizada, precisa configurar a connection string em `server/1 - Frameworks & Drivers/TechChallenge.Oficina.Monolith.API/appsettings.json`, na chave `DatabaseSettings:ConnectionString`.
 
-Para um cluster Kubernetes local, os manifests do Postgres estão em [k8s/db-local](./k8s/db-local) (veja a seção 6.3). Na AWS, o banco é o Amazon RDS do repositório DB.
+Na AWS, o banco é o Amazon RDS do repositório DB.
 
 ### 4.6. Rodando os testes
 
@@ -330,18 +342,7 @@ Crie uma vez, em `us-east-1`, os 5 repositórios privados com *tag mutability* *
 - `techchallenge-oficina-getos`
 - `techchallenge-oficina-status`
 
-### 6.3 Kubernetes local
-
-Os manifests de [k8s/db-local](./k8s/db-local) sobem só o Postgres num cluster Kubernetes **local** e **não** devem ser aplicados na AWS. Os manifests das APIs ficam no repositório K8S. Para apontá-las para esse Postgres, siga o [README do db-local](./k8s/db-local/README.md), que traz a connection string do `k8s/.env`.
-
-Os manifests usam o namespace `oficina`, que é definido no repositório K8S. Num cluster local sem os manifests de lá, crie o namespace antes:
-
-```powershell
-kubectl create namespace oficina
-kubectl apply -f k8s/db-local
-```
-
-### 6.4 Observabilidade (Datadog)
+### 6.3 Observabilidade (Datadog)
 
 As 5 APIs escrevem logs em JSON no stdout, 1 por linha (Serilog), com eventos de negócio do fluxo de OS (`os.criada`, `os.status_alterado`, `os.falha` etc.) e erros com `error.*`. Na AWS, o Datadog Agent do repo K8S coleta esses logs e injeta o tracer .NET nos pods (APM), sem mudança no código ou no Dockerfile, e cada log traz o `dd.trace_id` da requisição. O `/health/ready` verifica o banco para o `http_check` do Agent.
 
