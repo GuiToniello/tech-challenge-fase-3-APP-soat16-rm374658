@@ -1,6 +1,9 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Commands;
+using TechChallenge.Oficina.UseCases.Features.OrdensServico.Logging;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Queries;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.UseCases;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.ViewModels;
@@ -32,13 +35,15 @@ public sealed class OrdemServicoUseCasesTests
     private readonly Mock<IEstoqueUseCases> _estoqueServiceMock = new();
     private readonly Mock<IIndicadorUseCases> _indicadorServiceMock = new();
     private readonly Mock<IOrcamentoEmailSender> _orcamentoEmailSenderMock = new();
+    private readonly Mock<IOrdemServicoStatusEmailSender> _ordemServicoStatusEmailSenderMock = new();
     private readonly Mock<IOrdemServicoUseCasesFacade> _ordemServicoServicesFacadeMock = new();
 
-    private OrdemServicoUseCases CriarService()
+    private OrdemServicoUseCases CriarService(ILogger<OrdemServicoUseCases>? logger = null)
     {
         _ordemServicoServicesFacadeMock.SetupGet(f => f.EstoqueService).Returns(_estoqueServiceMock.Object);
         _ordemServicoServicesFacadeMock.SetupGet(f => f.IndicadorService).Returns(_indicadorServiceMock.Object);
         _ordemServicoServicesFacadeMock.SetupGet(f => f.OrcamentoEmailSender).Returns(_orcamentoEmailSenderMock.Object);
+        _ordemServicoServicesFacadeMock.SetupGet(f => f.OrdemServicoStatusEmailSender).Returns(_ordemServicoStatusEmailSenderMock.Object);
 
         return new OrdemServicoUseCases(
             _mapperMock.Object,
@@ -46,7 +51,16 @@ public sealed class OrdemServicoUseCasesTests
             _clienteRepositoryMock.Object,
             _veiculoRepositoryMock.Object,
             _servicoRepositoryMock.Object,
-            _ordemServicoServicesFacadeMock.Object);
+            _ordemServicoServicesFacadeMock.Object,
+            logger ?? NullLogger<OrdemServicoUseCases>.Instance);
+    }
+
+    private static (LogLevel Nivel, IReadOnlyDictionary<string, object?> Propriedades, Exception? Excecao) ObterRegistroDeLog(Mock<ILogger<OrdemServicoUseCases>> loggerMock, EventId evento)
+    {
+        var invocacao = Assert.Single(loggerMock.Invocations, chamada => chamada.Method.Name == nameof(ILogger.Log) && ((EventId)chamada.Arguments[1]).Id == evento.Id);
+        var propriedades = ((IEnumerable<KeyValuePair<string, object?>>)invocacao.Arguments[2]).ToDictionary(propriedade => propriedade.Key, propriedade => propriedade.Value);
+
+        return ((LogLevel)invocacao.Arguments[0], propriedades, (Exception?)invocacao.Arguments[3]);
     }
 
     private static Cliente CriarCliente(string identificacao = "52998224725", string? email = null) => Cliente.Criar("Cliente Teste", IdentificacaoCliente.Criar(identificacao), email);
@@ -313,6 +327,29 @@ public sealed class OrdemServicoUseCasesTests
     }
 
     [Fact]
+    public async Task AlterarStatusParaEmDiagnosticoAsync_DeveRegistrarStatusAlteradoComTempoNoStatusAnterior()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente();
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()], DateTime.UtcNow.AddMinutes(-10));
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _mapperMock.Setup(m => m.Map<OrdemServicoViewModel>(It.IsAny<object>())).Returns((object source) => MapearViewModel((OrdemServico)source));
+
+        await service.AlterarStatusParaEmDiagnosticoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        var (nivel, propriedades, _) = ObterRegistroDeLog(loggerMock, OrdemServicoLogEventos.OsStatusAlterado);
+        Assert.Equal(LogLevel.Information, nivel);
+        Assert.Equal(ordemServico.Id, propriedades["OrdemServicoId"]);
+        Assert.Equal("recebida", propriedades["StatusAnterior"]);
+        Assert.Equal("em_diagnostico", propriedades["StatusNovo"]);
+        Assert.Equal("diagnostico", propriedades["Etapa"]);
+        Assert.InRange((double)propriedades["TempoNoStatusAnteriorSegundos"]!, 600d, 660d);
+    }
+
+    [Fact]
     public async Task AlterarStatusParaEmExecucaoAsync_DeveAlterarStatusEPersistir()
     {
         var service = CriarService();
@@ -395,6 +432,128 @@ public sealed class OrdemServicoUseCasesTests
     }
 
     [Fact]
+    public async Task AlterarStatusParaEmDiagnosticoAsync_DeveRegistrarFalhaDeIntegracaoSemInterromper_QuandoNotificacaoFalhar()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        var falha = new HttpRequestException("Falha de comunicacao com o provedor de email.");
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _ordemServicoStatusEmailSenderMock.Setup(s => s.EnviarStatusAlteradoAsync(ordemServico, "cliente@teste.com", StatusOrdemServico.EmDiagnostico, It.IsAny<CancellationToken>())).ThrowsAsync(falha);
+        _mapperMock.Setup(m => m.Map<OrdemServicoViewModel>(It.IsAny<object>())).Returns((object source) => MapearViewModel((OrdemServico)source));
+
+        var resultado = await service.AlterarStatusParaEmDiagnosticoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        Assert.Equal((int)StatusOrdemServico.EmDiagnostico, resultado.Status);
+        _ordemServicoRepositoryMock.Verify(r => r.AtualizarAsync(ordemServico, It.IsAny<CancellationToken>()), Times.Once);
+        var (nivel, propriedades, excecaoRegistrada) = ObterRegistroDeLog(loggerMock, OrdemServicoLogEventos.IntegracaoFalha);
+        Assert.Equal(LogLevel.Warning, nivel);
+        Assert.Same(falha, excecaoRegistrada);
+        Assert.Equal("resend", propriedades["Integracao"]);
+        Assert.Equal("notificacao_status", propriedades["Operacao"]);
+        Assert.Equal(ordemServico.Id, propriedades["OrdemServicoId"]);
+        Assert.Equal("em_diagnostico", propriedades["StatusNovo"]);
+    }
+
+    [Fact]
+    public async Task AlterarStatusParaEntregueAsync_DeveAtualizarIndicadoresERegistrarFalhaDeIntegracao_QuandoNotificacaoExpirarSemCancelamento()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        ordemServico.AlterarParaEmDiagnostico();
+        ordemServico.AlterarParaEmExecucao();
+        ordemServico.AlterarParaFinalizada();
+        var timeout = new TaskCanceledException("Timeout do HttpClient no envio de email", new TimeoutException("Tempo esgotado"));
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _ordemServicoStatusEmailSenderMock.Setup(s => s.EnviarStatusAlteradoAsync(ordemServico, "cliente@teste.com", StatusOrdemServico.Entregue, It.IsAny<CancellationToken>())).ThrowsAsync(timeout);
+        _mapperMock.Setup(m => m.Map<OrdemServicoViewModel>(It.IsAny<object>())).Returns((object source) => MapearViewModel((OrdemServico)source));
+
+        var resultado = await service.AlterarStatusParaEntregueAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id }, CancellationToken.None);
+
+        Assert.Equal((int)StatusOrdemServico.Entregue, resultado.Status);
+        _indicadorServiceMock.Verify(r => r.AtualizarAsync(It.IsAny<CancellationToken>()), Times.Once);
+        var (nivel, propriedades, excecaoRegistrada) = ObterRegistroDeLog(loggerMock, OrdemServicoLogEventos.IntegracaoFalha);
+        Assert.Equal(LogLevel.Warning, nivel);
+        Assert.Same(timeout, excecaoRegistrada);
+        Assert.Equal("notificacao_status", propriedades["Operacao"]);
+    }
+
+    [Fact]
+    public async Task AlterarStatusParaEmDiagnosticoAsync_DevePropagarCancelamento_QuandoRequisicaoCanceladaDuranteNotificacao()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        using var cancelamento = new CancellationTokenSource();
+        cancelamento.Cancel();
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _ordemServicoStatusEmailSenderMock.Setup(s => s.EnviarStatusAlteradoAsync(ordemServico, "cliente@teste.com", StatusOrdemServico.EmDiagnostico, It.IsAny<CancellationToken>())).ThrowsAsync(new OperationCanceledException(cancelamento.Token));
+
+        var action = async () => await service.AlterarStatusParaEmDiagnosticoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id }, cancelamento.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(action);
+        Assert.DoesNotContain(loggerMock.Invocations, chamada => chamada.Method.Name == nameof(ILogger.Log) && ((EventId)chamada.Arguments[1]).Id == OrdemServicoLogEventos.IntegracaoFalha.Id);
+    }
+
+    [Fact]
+    public async Task AlterarStatusParaEmDiagnosticoAsync_DeveRegistrarAvisoSemEventoSemInterromper_QuandoBuscaDoClienteFalhar()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        var falha = new InvalidOperationException("Falha ao consultar o cliente.");
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ThrowsAsync(falha);
+        _mapperMock.Setup(m => m.Map<OrdemServicoViewModel>(It.IsAny<object>())).Returns((object source) => MapearViewModel((OrdemServico)source));
+
+        var resultado = await service.AlterarStatusParaEmDiagnosticoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        Assert.Equal((int)StatusOrdemServico.EmDiagnostico, resultado.Status);
+        var (nivel, propriedades, excecaoRegistrada) = ObterRegistroDeLog(loggerMock, default);
+        Assert.Equal(LogLevel.Warning, nivel);
+        Assert.Same(falha, excecaoRegistrada);
+        Assert.False(propriedades.ContainsKey("Integracao"));
+        _ordemServicoStatusEmailSenderMock.Verify(s => s.EnviarStatusAlteradoAsync(It.IsAny<OrdemServico>(), It.IsAny<string>(), It.IsAny<StatusOrdemServico>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AlterarStatusParaEmDiagnosticoAsync_DevePropagarCancelamento_QuandoRequisicaoCanceladaDuranteBuscaDoCliente()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        using var cancelamento = new CancellationTokenSource();
+        cancelamento.Cancel();
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ThrowsAsync(new OperationCanceledException(cancelamento.Token));
+
+        var action = async () => await service.AlterarStatusParaEmDiagnosticoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id }, cancelamento.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(action);
+        Assert.DoesNotContain(loggerMock.Invocations, chamada => chamada.Method.Name == nameof(ILogger.Log) && (LogLevel)chamada.Arguments[0] == LogLevel.Warning);
+        _ordemServicoStatusEmailSenderMock.Verify(s => s.EnviarStatusAlteradoAsync(It.IsAny<OrdemServico>(), It.IsAny<string>(), It.IsAny<StatusOrdemServico>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GerarOrcamentoAsync_DeveCalcularOrcamentoEPersistirUltimoResultado()
     {
         var service = CriarService();
@@ -456,6 +615,27 @@ public sealed class OrdemServicoUseCasesTests
     }
 
     [Fact]
+    public async Task GerarOrcamentoAsync_DeveLancarDomainExceptionSemVerificarEstoque_QuandoOrdemFinalizada()
+    {
+        var service = CriarService();
+        var cliente = CriarCliente();
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        ordemServico.AlterarParaEmDiagnostico();
+        ordemServico.AlterarParaEmExecucao();
+        ordemServico.AlterarParaFinalizada();
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+
+        var action = async () => await service.GerarOrcamentoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        var exception = await Assert.ThrowsAsync<DomainException>(action);
+        Assert.Equal("Somente ordem de servico recebida, em diagnostico ou aguardando aprovacao pode ter orcamento gerado.", exception.Message);
+        _estoqueServiceMock.Verify(s => s.VerificarDisponibilidadeParaOrcamentoAsync(It.IsAny<IReadOnlyCollection<Servico>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _ordemServicoRepositoryMock.Verify(r => r.AtualizarAsync(It.IsAny<OrdemServico>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task EnviarOrcamentoPorEmailAsync_DeveEnviarQuandoOrcamentoEEmailExistem()
     {
         var service = CriarService();
@@ -509,6 +689,81 @@ public sealed class OrdemServicoUseCasesTests
     }
 
     [Fact]
+    public async Task EnviarOrcamentoPorEmailAsync_DeveRegistrarFalhaDeIntegracaoERelancar_QuandoEnvioFalhar()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        ordemServico.GerarOrcamento();
+        var falha = new HttpRequestException("Falha de comunicacao com o provedor de email.");
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _orcamentoEmailSenderMock.Setup(r => r.EnviarOrcamentoAsync(ordemServico, "cliente@teste.com", It.IsAny<CancellationToken>())).ThrowsAsync(falha);
+
+        var action = async () => await service.EnviarOrcamentoPorEmailAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(action);
+        Assert.Same(falha, exception);
+        var (nivel, propriedades, excecaoRegistrada) = ObterRegistroDeLog(loggerMock, OrdemServicoLogEventos.IntegracaoFalha);
+        Assert.Equal(LogLevel.Error, nivel);
+        Assert.Same(falha, excecaoRegistrada);
+        Assert.Equal("resend", propriedades["Integracao"]);
+        Assert.Equal("envio_orcamento", propriedades["Operacao"]);
+        Assert.Equal(ordemServico.Id, propriedades["OrdemServicoId"]);
+    }
+
+    [Fact]
+    public async Task EnviarOrcamentoPorEmailAsync_DeveRegistrarFalhaDeIntegracaoERelancar_QuandoEnvioExpirarSemCancelamento()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        ordemServico.GerarOrcamento();
+        var timeout = new TaskCanceledException("Timeout do HttpClient no envio de email", new TimeoutException("Tempo esgotado"));
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _orcamentoEmailSenderMock.Setup(r => r.EnviarOrcamentoAsync(ordemServico, "cliente@teste.com", It.IsAny<CancellationToken>())).ThrowsAsync(timeout);
+
+        var action = async () => await service.EnviarOrcamentoPorEmailAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id }, CancellationToken.None);
+
+        var exception = await Assert.ThrowsAsync<TaskCanceledException>(action);
+        Assert.Same(timeout, exception);
+        var (nivel, propriedades, excecaoRegistrada) = ObterRegistroDeLog(loggerMock, OrdemServicoLogEventos.IntegracaoFalha);
+        Assert.Equal(LogLevel.Error, nivel);
+        Assert.Same(timeout, excecaoRegistrada);
+        Assert.Equal("resend", propriedades["Integracao"]);
+        Assert.Equal("envio_orcamento", propriedades["Operacao"]);
+    }
+
+    [Fact]
+    public async Task EnviarOrcamentoPorEmailAsync_DeveRelancarSemRegistrarFalhaDeIntegracao_QuandoRequisicaoCancelada()
+    {
+        var loggerMock = new Mock<ILogger<OrdemServicoUseCases>>();
+        var service = CriarService(loggerMock.Object);
+        var cliente = CriarCliente(email: "cliente@teste.com");
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+        ordemServico.GerarOrcamento();
+        using var cancelamento = new CancellationTokenSource();
+        cancelamento.Cancel();
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+        _clienteRepositoryMock.Setup(r => r.ObterPorIdAsync(cliente.Id, It.IsAny<CancellationToken>())).ReturnsAsync(cliente);
+        _orcamentoEmailSenderMock.Setup(r => r.EnviarOrcamentoAsync(ordemServico, "cliente@teste.com", It.IsAny<CancellationToken>())).ThrowsAsync(new OperationCanceledException(cancelamento.Token));
+
+        var action = async () => await service.EnviarOrcamentoPorEmailAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id }, cancelamento.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(action);
+        Assert.DoesNotContain(loggerMock.Invocations, chamada => chamada.Method.Name == nameof(ILogger.Log) && ((EventId)chamada.Arguments[1]).Id == OrdemServicoLogEventos.IntegracaoFalha.Id);
+    }
+
+    [Fact]
     public async Task AprovarOrcamentoAsync_DeveAlterarStatusParaEmExecucao()
     {
         var service = CriarService();
@@ -547,6 +802,25 @@ public sealed class OrdemServicoUseCasesTests
 
         var exception = await Assert.ThrowsAsync<DomainException>(action);
         Assert.Equal("Estoque insuficiente para aprovar orcamento.", exception.Message);
+        _estoqueServiceMock.Verify(s => s.DebitarEstoqueParaOrdemServicoAsync(It.IsAny<IReadOnlyCollection<Servico>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _ordemServicoRepositoryMock.Verify(r => r.AtualizarAsync(It.IsAny<OrdemServico>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AprovarOrcamentoAsync_DeveLancarDomainExceptionSemMovimentarEstoque_QuandoStatusInvalido()
+    {
+        var service = CriarService();
+        var cliente = CriarCliente();
+        var veiculo = CriarVeiculo(cliente.Id);
+        var ordemServico = CriarOrdemServico(cliente.Id, veiculo.Id, [CriarServico()]);
+
+        _ordemServicoRepositoryMock.Setup(r => r.ObterPorIdAsync(ordemServico.Id, It.IsAny<CancellationToken>())).ReturnsAsync(ordemServico);
+
+        var action = async () => await service.AprovarOrcamentoAsync(new AlterarStatusOrdemServicoCommand { Id = ordemServico.Id });
+
+        var exception = await Assert.ThrowsAsync<DomainException>(action);
+        Assert.Equal("Somente ordem de servico aguardando aprovacao pode ser aprovada.", exception.Message);
+        _estoqueServiceMock.Verify(s => s.VerificarDisponibilidadeParaOrcamentoAsync(It.IsAny<IReadOnlyCollection<Servico>>(), It.IsAny<CancellationToken>()), Times.Never);
         _estoqueServiceMock.Verify(s => s.DebitarEstoqueParaOrdemServicoAsync(It.IsAny<IReadOnlyCollection<Servico>>(), It.IsAny<CancellationToken>()), Times.Never);
         _ordemServicoRepositoryMock.Verify(r => r.AtualizarAsync(It.IsAny<OrdemServico>(), It.IsAny<CancellationToken>()), Times.Never);
     }

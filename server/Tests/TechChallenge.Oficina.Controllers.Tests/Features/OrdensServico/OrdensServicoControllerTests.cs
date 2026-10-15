@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using TechChallenge.Oficina.UseCases.Features.Clientes.Commands;
 using TechChallenge.Oficina.UseCases.Features.Clientes.UseCases;
@@ -6,6 +8,7 @@ using TechChallenge.Oficina.UseCases.Features.Insumos.Commands;
 using TechChallenge.Oficina.UseCases.Features.Insumos.UseCases;
 using TechChallenge.Oficina.UseCases.Features.Insumos.ViewModels;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Commands;
+using TechChallenge.Oficina.UseCases.Features.OrdensServico.Logging;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Queries;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.UseCases;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.ViewModels;
@@ -249,7 +252,57 @@ public sealed class OrdensServicoControllerTests
         _adapterMock.Verify(adapter => adapter.Adapt(It.IsAny<OrdensServicoResult<OrdemServicoViewModel, Exception>>(), It.IsAny<bool>()), Times.Once);
     }
 
-    private OrdensServicoController CriarController()
+    [Fact]
+    public async Task AprovarOrcamento_DeveRegistrarFalhaDeRegraDeNegocio_QuandoDomainException()
+    {
+        var loggerMock = new Mock<ILogger<OrdensServicoController>>();
+        var controller = CriarController(loggerMock.Object);
+        var id = Guid.NewGuid();
+
+        _serviceMock
+            .Setup(service => service.AprovarOrcamentoAsync(It.Is<AlterarStatusOrdemServicoCommand>(c => c.Id == id), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DomainException("Somente ordem de servico aguardando aprovacao pode ser aprovada."));
+
+        await controller.AprovarOrcamento(id, CancellationToken.None);
+
+        var (nivel, propriedades) = ObterRegistroDeFalha(loggerMock);
+        Assert.Equal(LogLevel.Warning, nivel);
+        Assert.Equal("orcamento_aprovacao", propriedades["Etapa"]);
+        Assert.Equal(id, propriedades["OrdemServicoId"]);
+        Assert.Equal("regra_negocio", propriedades["TipoFalha"]);
+        Assert.Equal("Somente ordem de servico aguardando aprovacao pode ser aprovada.", propriedades["Motivo"]);
+    }
+
+    [Fact]
+    public async Task AprovarOrcamento_DeveRegistrarFalhaDeNaoEncontrado_QuandoKeyNotFoundException()
+    {
+        var loggerMock = new Mock<ILogger<OrdensServicoController>>();
+        var controller = CriarController(loggerMock.Object);
+        var id = Guid.NewGuid();
+
+        _serviceMock
+            .Setup(service => service.AprovarOrcamentoAsync(It.Is<AlterarStatusOrdemServicoCommand>(c => c.Id == id), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KeyNotFoundException("Ordem de servico nao encontrada."));
+
+        await controller.AprovarOrcamento(id, CancellationToken.None);
+
+        var (nivel, propriedades) = ObterRegistroDeFalha(loggerMock);
+        Assert.Equal(LogLevel.Warning, nivel);
+        Assert.Equal("orcamento_aprovacao", propriedades["Etapa"]);
+        Assert.Equal(id, propriedades["OrdemServicoId"]);
+        Assert.Equal("nao_encontrado", propriedades["TipoFalha"]);
+        Assert.Equal("Ordem de servico nao encontrada.", propriedades["Motivo"]);
+    }
+
+    private static (LogLevel Nivel, IReadOnlyDictionary<string, object?> Propriedades) ObterRegistroDeFalha(Mock<ILogger<OrdensServicoController>> loggerMock)
+    {
+        var invocacao = Assert.Single(loggerMock.Invocations, chamada => chamada.Method.Name == nameof(ILogger.Log) && ((EventId)chamada.Arguments[1]).Id == OrdemServicoLogEventos.OsFalha.Id);
+        var propriedades = ((IEnumerable<KeyValuePair<string, object?>>)invocacao.Arguments[2]).ToDictionary(propriedade => propriedade.Key, propriedade => propriedade.Value);
+
+        return ((LogLevel)invocacao.Arguments[0], propriedades);
+    }
+
+    private OrdensServicoController CriarController(ILogger<OrdensServicoController>? logger = null)
     {
         return new OrdensServicoController(
             _clienteUseCasesMock.Object,
@@ -257,6 +310,7 @@ public sealed class OrdensServicoControllerTests
             _insumoUseCasesMock.Object,
             _servicoUseCasesMock.Object,
             _serviceMock.Object,
-            _adapterMock.Object);
+            _adapterMock.Object,
+            logger ?? NullLogger<OrdensServicoController>.Instance);
     }
 }

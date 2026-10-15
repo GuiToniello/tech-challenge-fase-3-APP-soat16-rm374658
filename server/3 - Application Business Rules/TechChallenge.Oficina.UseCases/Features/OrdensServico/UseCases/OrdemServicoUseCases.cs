@@ -1,8 +1,11 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Commands;
+using TechChallenge.Oficina.UseCases.Features.OrdensServico.Logging;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Queries;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.ViewModels;
 using TechChallenge.Oficina.Entities.Exceptions;
+using TechChallenge.Oficina.Entities.Features.Clientes;
 using TechChallenge.Oficina.Entities.Features.OrdensServico;
 using TechChallenge.Oficina.Entities.Features.OrdensServico.Enums;
 using TechChallenge.Oficina.Entities.Features.Servicos;
@@ -21,8 +24,9 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     private readonly IVeiculoGateway _veiculoGateway;
     private readonly IServicoGateway _servicoGateway;
     private readonly IOrdemServicoUseCasesFacade _ordemServicoServicesFacade;
+    private readonly ILogger<OrdemServicoUseCases> _logger;
 
-    public OrdemServicoUseCases(IMapper mapper, IOrdemServicoGateway ordemServicoGateway, IClienteGateway clienteGateway, IVeiculoGateway veiculoGateway, IServicoGateway servicoGateway, IOrdemServicoUseCasesFacade ordemServicoServicesFacade)
+    public OrdemServicoUseCases(IMapper mapper, IOrdemServicoGateway ordemServicoGateway, IClienteGateway clienteGateway, IVeiculoGateway veiculoGateway, IServicoGateway servicoGateway, IOrdemServicoUseCasesFacade ordemServicoServicesFacade, ILogger<OrdemServicoUseCases> logger)
     {
         _mapper = mapper;
         _ordemServicoGateway = ordemServicoGateway;
@@ -30,6 +34,7 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
         _veiculoGateway = veiculoGateway;
         _servicoGateway = servicoGateway;
         _ordemServicoServicesFacade = ordemServicoServicesFacade;
+        _logger = logger;
     }
 
     public async Task<OrdemServicoViewModel> CriarAsync(CriarOrdemServicoCommand command, CancellationToken cancellationToken = default)
@@ -42,6 +47,14 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
         var ordemServico = OrdemServico.Criar(command.ClienteId, command.VeiculoId, servicos);
 
         await _ordemServicoGateway.AdicionarAsync(ordemServico, cancellationToken);
+
+        _logger.LogInformation(
+            OrdemServicoLogEventos.OsCriada,
+            "Ordem de servico {OrdemServicoId} criada para o cliente {ClienteId} e o veiculo {VeiculoId} com {QuantidadeServicos} servicos.",
+            ordemServico.Id,
+            ordemServico.ClienteId,
+            ordemServico.VeiculoId,
+            ordemServico.Servicos.Count);
 
         return _mapper.Map<OrdemServicoViewModel>(ordemServico);
     }
@@ -106,9 +119,12 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
         var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
 
-        ordemServico.AlterarParaEmDiagnostico();
+        ordemServico.AlterarParaEmDiagnostico(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.Diagnostico, statusAnterior, dataEntradaStatusAnterior, agora);
 
         await EnviarNotificacaoStatusAlteradoAsync(ordemServico, statusAnterior, cancellationToken);
 
@@ -118,9 +134,29 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     public async Task<OrdemServicoViewModel> GerarOrcamentoAsync(AlterarStatusOrdemServicoCommand command, CancellationToken cancellationToken = default)
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
+        ordemServico.ValidarGeracaoOrcamento();
         await _ordemServicoServicesFacade.EstoqueService.VerificarDisponibilidadeParaOrcamentoAsync(ordemServico.Servicos, cancellationToken);
-        ordemServico.GerarOrcamento();
+
+        var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
+        var regerado = ordemServico.Orcamento is not null;
+
+        ordemServico.GerarOrcamento(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+
+        if (ordemServico.Status != statusAnterior)
+        {
+            RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.OrcamentoGeracao, statusAnterior, dataEntradaStatusAnterior, agora);
+        }
+
+        _logger.LogInformation(
+            OrdemServicoLogEventos.OsOrcamentoGerado,
+            "Orcamento da ordem de servico {OrdemServicoId} gerado com valor total {ValorTotal} (regerado: {Regerado}).",
+            ordemServico.Id,
+            ordemServico.Orcamento!.ValorTotal,
+            regerado);
+
         return _mapper.Map<OrdemServicoViewModel>(ordemServico);
     }
 
@@ -141,24 +177,59 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
             throw new DomainException("O cliente da ordem de servico nao possui email cadastrado.");
         }
 
-        await _ordemServicoServicesFacade.OrcamentoEmailSender.EnviarOrcamentoAsync(ordemServico, cliente.Email, cancellationToken);
+        // O timeout do HttpClient também é OperationCanceledException; só o cancelamento da requisição sai sem registro.
+        try
+        {
+            await _ordemServicoServicesFacade.OrcamentoEmailSender.EnviarOrcamentoAsync(ordemServico, cliente.Email, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not DomainException && (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
+        {
+            _logger.LogError(
+                OrdemServicoLogEventos.IntegracaoFalha,
+                ex,
+                "Falha na integracao {Integracao} durante a operacao {Operacao} da ordem de servico {OrdemServicoId}.",
+                OrdemServicoLogEventos.Integracoes.Resend,
+                OrdemServicoLogEventos.Operacoes.EnvioOrcamento,
+                ordemServico.Id);
+            throw;
+        }
+
+        _logger.LogInformation(
+            OrdemServicoLogEventos.OsOrcamentoEnviado,
+            "Orcamento da ordem de servico {OrdemServicoId} enviado por email com valor total {ValorTotal}.",
+            ordemServico.Id,
+            ordemServico.Orcamento.ValorTotal);
     }
 
     public async Task<OrdemServicoViewModel> AprovarOrcamentoAsync(AlterarStatusOrdemServicoCommand command, CancellationToken cancellationToken = default)
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
+        ordemServico.ValidarAprovacaoOrcamento();
         await _ordemServicoServicesFacade.EstoqueService.VerificarDisponibilidadeParaOrcamentoAsync(ordemServico.Servicos, cancellationToken);
         await _ordemServicoServicesFacade.EstoqueService.DebitarEstoqueParaOrdemServicoAsync(ordemServico.Servicos, cancellationToken);
-        ordemServico.AprovarOrcamento();
+
+        var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
+
+        ordemServico.AprovarOrcamento(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.OrcamentoAprovacao, statusAnterior, dataEntradaStatusAnterior, agora);
+
         return _mapper.Map<OrdemServicoViewModel>(ordemServico);
     }
 
     public async Task<OrdemServicoViewModel> RecusarOrcamentoAsync(AlterarStatusOrdemServicoCommand command, CancellationToken cancellationToken = default)
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
-        ordemServico.RecusarOrcamento();
+        var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
+
+        ordemServico.RecusarOrcamento(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.OrcamentoRecusa, statusAnterior, dataEntradaStatusAnterior, agora);
+
         return _mapper.Map<OrdemServicoViewModel>(ordemServico);
     }
 
@@ -166,9 +237,12 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
         var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
 
-        ordemServico.AlterarParaEmExecucao();
+        ordemServico.AlterarParaEmExecucao(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.Execucao, statusAnterior, dataEntradaStatusAnterior, agora);
 
         await EnviarNotificacaoStatusAlteradoAsync(ordemServico, statusAnterior, cancellationToken);
 
@@ -179,9 +253,12 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
         var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
 
-        ordemServico.AlterarParaFinalizada();
+        ordemServico.AlterarParaFinalizada(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.Finalizacao, statusAnterior, dataEntradaStatusAnterior, agora);
 
         await EnviarNotificacaoStatusAlteradoAsync(ordemServico, statusAnterior, cancellationToken);
 
@@ -192,9 +269,18 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
     {
         var ordemServico = await ObterOrdemServicoExistenteAsync(command.Id, cancellationToken);
         var statusAnterior = ordemServico.Status;
+        var dataEntradaStatusAnterior = ordemServico.HistoricoStatus.Max(historico => historico.DataAlteracao);
+        var agora = DateTime.UtcNow;
 
-        ordemServico.AlterarParaEntregue();
+        ordemServico.AlterarParaEntregue(agora);
         await _ordemServicoGateway.AtualizarAsync(ordemServico, cancellationToken);
+        RegistrarTransicao(ordemServico, OrdemServicoLogEventos.Etapas.Entrega, statusAnterior, dataEntradaStatusAnterior, agora);
+
+        _logger.LogInformation(
+            OrdemServicoLogEventos.OsEncerrada,
+            "Ordem de servico {OrdemServicoId} encerrada apos {TempoTotalSegundos} segundos desde o recebimento.",
+            ordemServico.Id,
+            ordemServico.ObterTempoEntrega().TotalSeconds);
 
         await EnviarNotificacaoStatusAlteradoAsync(ordemServico, statusAnterior, cancellationToken);
         await _ordemServicoServicesFacade.IndicadorService.AtualizarAsync(cancellationToken);
@@ -214,24 +300,59 @@ public sealed class OrdemServicoUseCases : IOrdemServicoUseCases
         return ordemServico;
     }
 
+    private void RegistrarTransicao(OrdemServico ordemServico, string etapa, StatusOrdemServico statusAnterior, DateTime dataEntradaStatusAnterior, DateTime dataAlteracao)
+    {
+        _logger.LogInformation(
+            OrdemServicoLogEventos.OsStatusAlterado,
+            "Ordem de servico {OrdemServicoId} alterada de {StatusAnterior} para {StatusNovo} na etapa {Etapa} apos {TempoNoStatusAnteriorSegundos} segundos no status anterior.",
+            ordemServico.Id,
+            OrdemServicoLogEventos.StatusParaLog(statusAnterior),
+            OrdemServicoLogEventos.StatusParaLog(ordemServico.Status),
+            etapa,
+            (dataAlteracao - dataEntradaStatusAnterior).TotalSeconds);
+    }
+
     private async Task EnviarNotificacaoStatusAlteradoAsync(OrdemServico ordemServico, StatusOrdemServico statusAnterior, CancellationToken cancellationToken)
     {
+        // Modo degradado: falhas na busca do cliente ou no envio de email (inclusive timeout) não interrompem o fluxo de atualização de status; só o cancelamento da requisição é propagado
+        Cliente? cliente;
+
         try
         {
-            var cliente = await _clienteGateway.ObterPorIdAsync(ordemServico.ClienteId, cancellationToken);
-
-            if (cliente is not null && !string.IsNullOrWhiteSpace(cliente.Email))
-            {
-                await _ordemServicoServicesFacade.OrdemServicoStatusEmailSender.EnviarStatusAlteradoAsync(
-                    ordemServico,
-                    cliente.Email,
-                    ordemServico.Status,
-                    cancellationToken);
-            }
+            cliente = await _clienteGateway.ObterPorIdAsync(ordemServico.ClienteId, cancellationToken);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Modo degradado: falhas no envio de email não interrompem o fluxo de atualização de status
+            _logger.LogWarning(
+                ex,
+                "Falha ao buscar o cliente da ordem de servico {OrdemServicoId} para notificar a alteracao de status.",
+                ordemServico.Id);
+            return;
+        }
+
+        if (cliente is null || string.IsNullOrWhiteSpace(cliente.Email))
+        {
+            return;
+        }
+
+        try
+        {
+            await _ordemServicoServicesFacade.OrdemServicoStatusEmailSender.EnviarStatusAlteradoAsync(
+                ordemServico,
+                cliente.Email,
+                ordemServico.Status,
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                OrdemServicoLogEventos.IntegracaoFalha,
+                ex,
+                "Falha na integracao {Integracao} durante a operacao {Operacao} da ordem de servico {OrdemServicoId} com status {StatusNovo}.",
+                OrdemServicoLogEventos.Integracoes.Resend,
+                OrdemServicoLogEventos.Operacoes.NotificacaoStatus,
+                ordemServico.Id,
+                OrdemServicoLogEventos.StatusParaLog(ordemServico.Status));
         }
     }
 

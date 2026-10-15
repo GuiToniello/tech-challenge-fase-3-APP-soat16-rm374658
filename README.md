@@ -44,6 +44,7 @@ Abaixo, você encontra um resumo.
 | ADR-011 — Envio de E-mail de Orçamento | Notifica o cliente por e-mail ao gerar orçamento via porta de saída `IOrcamentoEmailSender` e provedor Resend. A API funciona normalmente sem a ApiKey; o envio de e-mail é desabilitado. | [ver](./docs/adr/ADR-011-Envio-de-Email-de-Orcamento.md) |
 | ADR-012 — Controle de Estoque de Insumos | Verifica estoque ao gerar orçamento (sem reserva) e debita automaticamente ao aprovar. Lança `DomainException` se houver estoque insuficiente em qualquer etapa. | [ver](./docs/adr/ADR-012-Controle-de-Estoque-de-Insumos.md) |
 | ADR-013 — Tratamento de Erros em Duas Camadas | Erros de negócio esperados são tratados nos controllers com resposta HTTP semântica (4xx). Erros inesperados são capturados pelo middleware global, evitando vazamento de stack trace. | [ver](./docs/adr/ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md) |
+| ADR-014 — Observabilidade com Datadog | As APIs escrevem logs JSON no stdout (Serilog) com eventos de negócio, e o tracer é injetado no cluster, sem mudar a imagem. Métricas de negócio derivadas dos logs, monitores, synthetics e dashboard ficam em Terraform no repo K8S. | [ver](./docs/adr/ADR-014-Observabilidade-com-Datadog.md) |
 
 ### 2.2. Autenticação
 
@@ -62,7 +63,7 @@ A API valida cada requisição verificando o JWT no header `Authorization: Beare
 
 O `Authority` aponta para o domínio Auth0, que expõe o endpoint `/.well-known/openid-configuration` usado pelo middleware para buscar as chaves públicas de validação. O `Audience` identifica esta API junto ao Auth0.
 
-Todos os endpoints exigem autenticação por padrão (política de fallback `RequireAuthenticatedUser`). O único endpoint público é `/health`.
+Todos os endpoints exigem autenticação por padrão (política de fallback `RequireAuthenticatedUser`). Os únicos endpoints públicos são `/health` e `/health/ready`, que também verifica o banco (seção 6.4).
 
 **Você não precisa criar uma conta no Auth0.** A Collection do Postman em `/e2e` já possui um request configurado com as credenciais de demonstração para obter o token de acesso via password grant (Resource Owner Password).
 
@@ -262,15 +263,22 @@ Sem `RESEND_API_KEY` (container) ou `ApiKey` no `appsettings.json` (execução l
 
 ## 5. Requisitos Implementados
 
-Abaixo, você encontra uma tabela com o resumo dos requisitos de negócio da Fase 2 que foram implementados.
+Abaixo, você encontra uma tabela com o resumo dos requisitos implementados: os de negócio da Fase 2 e os de observabilidade (R1 a R7).
 
-| Requisito | Atende? | Observação de escopo | API | Evidências (server/) |
+| Requisito | Atende? | Observação de escopo | API | Evidências |
 |---|---|---|---|---|
 | Consulta de status da Ordem de Serviço (OS) | Sim | Consulta de status disponível no fluxo de OS. | `TechChallenge.Oficina.StatusService.API` (API dedicada para consulta de status): [StatusOrdemServicoEndpoints](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.StatusService.API/Features/OrdensServico/StatusOrdemServicoEndpoints.cs) | [Endpoints OS](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Features/OrdensServico/OrdensServicoEndpoints.cs) · [Controller OS](./server/2%20-%20Interface%20Adapters/TechChallenge.Oficina.Controllers/Features/OrdensServico/OrdensServicoController.cs) |
 | Aprovação/recusa de orçamento por endpoint externo | Sim | Aprovação e recusa implementadas no fluxo da OS. | `TechChallenge.Oficina.ApprovalService.API` (API dedicada para aprovação/recusa de orçamento): [ApprovalServiceEndpoints](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.ApprovalService.API/Features/OrdensServico/ApprovalServiceEndpoints.cs) | [Endpoints OS](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Features/OrdensServico/OrdensServicoEndpoints.cs) · [UseCases OS](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/UseCases/OrdemServicoUseCases.cs) |
 | Abertura de OS com cliente, veículo, serviços e peças, retornando ID único | Sim | Abertura completa com retorno da identificação da OS. | `TechChallenge.Oficina.CreateOSService.API` (API dedicada para abertura da OS): [CriarOSCompletaEndpoints](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.CreateOSService.API/Features/OrdensServico/CriarOSCompletaEndpoints.cs) | [Controller OS](./server/2%20-%20Interface%20Adapters/TechChallenge.Oficina.Controllers/Features/OrdensServico/OrdensServicoController.cs) · [ViewModel Abertura](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/ViewModels/AberturaOrdemServicoViewModel.cs) |
 | Listagem de OS por prioridade + antiguidade, excluindo finalizadas/entregues | Sim | Escopo acordado: endpoint ordenado /ordenadas. | `TechChallenge.Oficina.GetOSService.API` (API dedicada para consultas e listagem de OS): [GetOrdensServicoEndpoints](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.GetOSService.API/Features/OrdensServico/GetOrdensServicoEndpoints.cs) | [Gateway OS](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.DB/Features/OrdensServico/OrdemServicoGateway.cs) · [Query Ordenada](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/Queries/ListarOrdensServicoOrdenadasQuery.cs) |
 | Atualização de status da OS com notificação ao cliente | Sim | A cada mudança de status da OS, o cliente é notificado por e-mail no fluxo de controller/use case, independentemente da API que executa a alteração. | Atualmente, os endpoints de alteração de status estão em `TechChallenge.Oficina.Monolith.API`: [OrdensServicoEndpoints](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Features/OrdensServico/OrdensServicoEndpoints.cs). A regra de notificação é centralizada no controller/use case e pode ser reutilizada por APIs dedicadas. | [UseCases OS](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/UseCases/OrdemServicoUseCases.cs) · [Sender Status](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Email/Features/OrdensServico/OrdemServicoStatusEmailSender.cs) |
+| R1 — Latência das APIs | Sim | APM com o tracer .NET injetado pelo Datadog Agent no cluster, sem mudança no código ou no Dockerfile. Latência p95 por serviço no monitor e no dashboard; por rota, na página do serviço no APM. | As 5 APIs (`service` = `monolith-api`, `approval-api`, `createos-api`, `getos-api` e `status-api`) | [ADR-014](./docs/adr/ADR-014-Observabilidade-com-Datadog.md) · `infra/DATADOG.md` do repo [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) |
+| R2 — Consumo de recursos do Kubernetes na AWS | Sim | Datadog Agent (DaemonSet + Cluster Agent) instalado pelo repo K8S. Monitores de CPU e memória em relação ao limit, restarts, CrashLoopBackOff e nós, mais widgets. | Cluster EKS (repo K8S) | [ADR-014](./docs/adr/ADR-014-Observabilidade-com-Datadog.md) · `infra/DATADOG.md` do repo [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) |
+| R3 — Healthchecks e uptime | Sim | `/health/ready` verifica o banco e é consultado pelo `http_check` do Datadog Agent; o `/health` não muda. Uptime externo por Synthetics em `GET /<api>/health` pelo API Gateway, com SLO. | As 5 APIs: `/health` e `/health/ready` | [Program.cs (Monolith)](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Program.cs) · [Health check do banco](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.DB/Extensions.cs) · [docs/observabilidade.md](./docs/observabilidade.md) (seção 6) · `infra/DATADOG.md` do repo [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) |
+| R4 — Falhas no processamento de OS | Sim | Eventos de log `os.falha` por etapa (regra de negócio), `integracao.falha` (Resend) e `http.erro_nao_tratado` (500, identificando banco indisponível), mais 5xx por rota no APM. Viram métricas, monitores e widgets. | As 5 APIs (o controller e o use case de OS são compartilhados) | [docs/observabilidade.md](./docs/observabilidade.md) (seções 3 e 5) · [Eventos OS](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/Logging/OrdemServicoLogEventos.cs) · [Controller OS](./server/2%20-%20Interface%20Adapters/TechChallenge.Oficina.Controllers/Features/OrdensServico/OrdensServicoController.cs) · [UseCases OS](./server/3%20-%20Application%20Business%20Rules/TechChallenge.Oficina.UseCases/Features/OrdensServico/UseCases/OrdemServicoUseCases.cs) · [Middleware](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Middleware/GlobalExceptionHandlerMiddleware.cs) |
+| R5 — Logs estruturados (JSON) | Sim | Serilog com 1 JSON por linha no stdout e chaves que o Datadog reconhece sem configuração (`timestamp`, `level`, `message`, `evento`, `dd.*` e `error.*`). | As 5 APIs | [LoggingExtension (Monolith)](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Extensions/LoggingExtension.cs) · [docs/observabilidade.md](./docs/observabilidade.md) (seção 2) |
+| R6 — Correlação entre logs e traces | Sim | Dentro das APIs: o tracer injeta `dd.trace_id` e `dd.span_id` em cada log, que abre o trace no APM. API Gateway e Lambdas não são rastreados (limitação registrada na ADR-014). | As 5 APIs | [LoggingExtension (Monolith)](./server/1%20-%20Frameworks%20%26%20Drivers/TechChallenge.Oficina.Monolith.API/Extensions/LoggingExtension.cs) · [ADR-014](./docs/adr/ADR-014-Observabilidade-com-Datadog.md) |
+| R7 — Dashboard | Sim | 1 dashboard: OS criadas e encerradas por dia, tempo médio por status, falhas (de negócio por etapa e 5xx por rota), erros de integração e seções técnicas de R1 a R3. Os widgets de negócio só recebem dados durante o trial de 14 dias do Datadog. | Datadog (repo K8S) | [docs/observabilidade.md](./docs/observabilidade.md) (seção 5) · `infra/DATADOG.md` do repo [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) |
 
 
 ## 6. Infraestrutura e repositórios
@@ -280,7 +288,7 @@ Na Fase 3, o projeto está dividido em quatro repositórios. Este (**APP**) guar
 | Repositório | Responsabilidade |
 |---|---|
 | **APP** (este) | Código .NET, testes, imagens Docker e push para o ECR |
-| [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) | VPC, Amazon EKS, Amazon API Gateway (acesso externo às APIs), addons (Metrics Server) e manifests Kubernetes das APIs. Também gera o Secret com a connection string do RDS e a chave do Resend |
+| [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658) | VPC, Amazon EKS, Amazon API Gateway (acesso externo às APIs), addons (Metrics Server e Datadog Agent), recursos do Datadog (métricas de log, monitores, synthetics e dashboard) e manifests Kubernetes das APIs. Também gera o Secret com a connection string do RDS e a chave do Resend |
 | [DB](https://github.com/GuiToniello/tech-challenge-fase-3-DB-soat16-rm374658) | Amazon RDS PostgreSQL. O schema é criado pelas migrations das APIs, no startup (ADR-009) |
 | [LAMBDA](https://github.com/GuiToniello/tech-challenge-fase-3-LAMBDA-soat16-rm374658) | Lambda authorizer do API Gateway (JWT do Auth0 com a claim `cpf`) e Lambda `POST /auth/token`, que gera o JWT com o CPF do cliente |
 
@@ -304,9 +312,12 @@ flowchart LR
 | Item | Valor |
 |---|---|
 | Imagens | `903936907231.dkr.ecr.us-east-1.amazonaws.com/techchallenge-oficina-{monolith,approval,createos,getos,status}:latest`, os mesmos nomes do `docker-compose.yml`. Os manifests do repo K8S usam `:latest` com `imagePullPolicy: Always` |
-| Porta e health | Todas as APIs escutam em `8080` e expõem `/health` sem autenticação (probes do K8S e health check do NLB do API Gateway) |
+| Porta e health | Todas as APIs escutam em `8080` e expõem `/health` sem autenticação (probes do K8S, health check do NLB do API Gateway e synthetics do Datadog) |
+| Health com banco | Todas as APIs expõem `/health/ready` sem autenticação: verifica o banco e responde `Healthy` (200) ou `Unhealthy` (503). É consultado só pelo `http_check` do Datadog Agent do repo K8S. O `readinessProbe` e o NLB continuam em `/health`, que não depende do banco |
 | Rotas | As rotas ficam na raiz (`/api/...` e `/health`), sem `PathBase`. O API Gateway do repo K8S recebe `/<api>/...` (`/monolith`, `/approval`, `/createos`, `/getos` e `/status`) e remove o prefixo antes de encaminhar |
-| Configuração | Em AWS, `DatabaseSettings__ConnectionString` e `ResendSettings__ApiKey` vêm do Secret `oficina-api-secrets`, gerado pelo repo K8S. Os ConfigMaps do repo K8S definem só `ASPNETCORE_*`, `AllowedHosts` e `Logging`. `AuthSettings` e o restante de `ResendSettings` (`FromEmail`, `SendEmailOnStatusChange`) vêm do `appsettings.json` da imagem |
+| Configuração | Em AWS, `DatabaseSettings__ConnectionString` e `ResendSettings__ApiKey` vêm do Secret `oficina-api-secrets`, gerado pelo repo K8S. Os ConfigMaps do repo K8S definem só `ASPNETCORE_*`, `AllowedHosts` e o nível de log (`Serilog__MinimumLevel__Default` e `Serilog__MinimumLevel__Override__Microsoft.AspNetCore`, que sobrescrevem a seção `Serilog` do `appsettings.json`). `AuthSettings` e o restante de `ResendSettings` (`FromEmail`, `SendEmailOnStatusChange`) vêm do `appsettings.json` da imagem |
+| Logs | JSON no stdout, 1 por linha (Serilog), com `timestamp`, `level`, `message`, `evento`, `logger.name`, `dd.*`, `error.*` e as propriedades dos eventos. O Datadog Agent do repo K8S coleta o stdout dos pods, e as métricas de log, os monitores e o dashboard de lá dependem dos nomes de eventos, propriedades e valores de [docs/observabilidade.md](./docs/observabilidade.md) |
+| Datadog | Os Deployments do repo K8S têm as labels `tags.datadoghq.com/env: study` e `tags.datadoghq.com/service: <api>-api`, que definem as tags `env` e `service` de logs, traces e métricas. O Agent injeta o tracer .NET nos pods do namespace `oficina`. Labels, tracer e chaves do Datadog ficam no repo K8S: nada disso está neste repositório |
 | Banco | As migrations do EF Core rodam no startup de 4 das 5 APIs (Monolith, CreateOS, GetOS e Status). A ApprovalService não aplica migrations. Com o RDS novo (vazio), as tabelas são criadas quando as APIs sobem |
 
 ### 6.2 ECR (manual)
@@ -329,6 +340,16 @@ Os manifests usam o namespace `oficina`, que é definido no repositório K8S. Nu
 kubectl create namespace oficina
 kubectl apply -f k8s/db-local
 ```
+
+### 6.4 Observabilidade (Datadog)
+
+As 5 APIs escrevem logs em JSON no stdout, 1 por linha (Serilog), com eventos de negócio do fluxo de OS (`os.criada`, `os.status_alterado`, `os.falha` etc.) e erros com `error.*`. Na AWS, o Datadog Agent do repo K8S coleta esses logs e injeta o tracer .NET nos pods (APM), sem mudança no código ou no Dockerfile, e cada log traz o `dd.trace_id` da requisição. O `/health/ready` verifica o banco para o `http_check` do Agent.
+
+- Decisão, consequências e limitações: [ADR-014](./docs/adr/ADR-014-Observabilidade-com-Datadog.md).
+- Contrato com o repo K8S (formato do log, catálogo de eventos, valores permitidos, mapa evento → métrica → dashboard e consultas úteis): [docs/observabilidade.md](./docs/observabilidade.md).
+- Agent, métricas, monitores, synthetics, dashboard, secrets e liga/desliga (`DD_ENABLED`): `infra/DATADOG.md` do repositório [K8S](https://github.com/GuiToniello/tech-challenge-fase-3-K8S-soat16-rm374658).
+
+Neste repositório não há nada a configurar: as chaves do Datadog ficam no repo K8S. Localmente, o `docker compose` mostra o mesmo JSON, só sem o objeto `dd`, porque não há tracer. A conta do Datadog é um trial de 14 dias; depois dele, APM, logs e synthetics param (ADR-014).
 
 ## 7. Fluxo de Deploy (CI/CD)
 

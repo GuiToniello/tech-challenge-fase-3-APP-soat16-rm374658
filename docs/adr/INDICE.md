@@ -14,6 +14,7 @@
 10. [ADR-011: Envio de E-mail de Orçamento com Resend](ADR-011-Envio-de-Email-de-Orcamento.md)
 11. [ADR-012: Controle de Estoque de Insumos](ADR-012-Controle-de-Estoque-de-Insumos.md)
 12. [ADR-013: Estratégia de Tratamento de Erros em Duas Camadas](ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md)
+13. [ADR-014: Observabilidade com Datadog](ADR-014-Observabilidade-com-Datadog.md)
 
 ## Resumo de Contextos
 
@@ -44,4 +45,7 @@
 
 ### Contexto de Segurança e Resiliência
 - **ADR-013**: Tratamento de erros esperados na borda (endpoints + adapters/controllers da arquitetura) e erros inesperados no middleware global
+
+### Contexto de Observabilidade
+- **ADR-014**: Logs JSON no stdout (Serilog) com eventos de negócio, APM injetado no cluster e métricas, monitores e dashboard no Datadog
 

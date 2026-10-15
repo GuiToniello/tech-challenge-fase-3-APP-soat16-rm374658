@@ -1,9 +1,13 @@
 ﻿using System.Text.Json;
+using TechChallenge.Oficina.DB.Data;
+using TechChallenge.Oficina.UseCases.Features.OrdensServico.Logging;
 
 namespace TechChallenge.Oficina.Monolith.API.Middleware;
 
 public sealed class GlobalExceptionHandlerMiddleware
 {
+    private static readonly EventId ErroNaoTratado = new(9001, "http.erro_nao_tratado");
+
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
 
@@ -19,10 +23,34 @@ public sealed class GlobalExceptionHandlerMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // Cliente desconectou: nao e erro do servidor, entao nao gera log de erro nem 5xx no APM
+            if (!context.Response.HasStarted)
+            {
+                context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
+            }
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Excecao nao tratada capturada pelo middleware global.");
+            RegistrarErro(context, ex);
             await EscreverRespostaErroAsync(context);
+        }
+    }
+
+    private void RegistrarErro(HttpContext context, Exception ex)
+    {
+        var routeTemplate = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText;
+
+        if (FalhasBanco.EhIndisponibilidade(ex))
+        {
+            _logger.LogError(ErroNaoTratado, ex, "Erro nao tratado em {RequestMethod} {RouteTemplate}: {Integracao} indisponivel",
+                context.Request.Method, routeTemplate, OrdemServicoLogEventos.Integracoes.Postgres);
+        }
+        else
+        {
+            _logger.LogError(ErroNaoTratado, ex, "Erro nao tratado em {RequestMethod} {RouteTemplate}",
+                context.Request.Method, routeTemplate);
         }
     }
 

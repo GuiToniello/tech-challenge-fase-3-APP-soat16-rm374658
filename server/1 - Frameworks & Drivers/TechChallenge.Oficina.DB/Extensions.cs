@@ -27,6 +27,7 @@ public static class Extensions
     public static IServiceCollection AddInfraData(this IServiceCollection services, string connectionString)
     {
         services.AddDbContext<OficinaDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddHealthChecks().AddDbContextCheck<OficinaDbContext>("postgres", tags: ["ready"]);
         services.AddScoped<IClienteGateway, ClienteGateway>();
         services.AddScoped<IInsumoGateway, InsumoGateway>();
         services.AddScoped<IIndicadorGateway, IndicadorGateway>();

@@ -115,8 +115,18 @@ public class OrdemServico
         DefinirStatus(StatusOrdemServico.Entregue, dataAlteracao ?? DateTime.UtcNow);
     }
 
+    public void ValidarGeracaoOrcamento()
+    {
+        if (Status != StatusOrdemServico.Recebida && Status != StatusOrdemServico.EmDiagnostico && Status != StatusOrdemServico.AguardandoAprovacao)
+        {
+            throw new DomainException("Somente ordem de servico recebida, em diagnostico ou aguardando aprovacao pode ter orcamento gerado.");
+        }
+    }
+
     public void GerarOrcamento(DateTime? dataGeracao = null)
     {
+        ValidarGeracaoOrcamento();
+
         Orcamento = Orcamento.Criar(Id, Servicos, dataGeracao ?? DateTime.UtcNow);
 
         if (Status != StatusOrdemServico.AguardandoAprovacao)
@@ -125,12 +135,17 @@ public class OrdemServico
         }
     }
 
-    public void AprovarOrcamento(DateTime? dataAprovacao = null)
+    public void ValidarAprovacaoOrcamento()
     {
         if (Status != StatusOrdemServico.AguardandoAprovacao)
         {
             throw new DomainException("Somente ordem de servico aguardando aprovacao pode ser aprovada.");
         }
+    }
+
+    public void AprovarOrcamento(DateTime? dataAprovacao = null)
+    {
+        ValidarAprovacaoOrcamento();
 
         DefinirStatus(StatusOrdemServico.EmExecucao, dataAprovacao ?? DateTime.UtcNow);
     }

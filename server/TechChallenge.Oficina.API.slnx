@@ -31,6 +31,7 @@
     <File Path="../docs/adr/ADR-011-Envio-de-Email-de-Orcamento.md" />
     <File Path="../docs/adr/ADR-012-Controle-de-Estoque-de-Insumos.md" />
     <File Path="../docs/adr/ADR-013-Estrategia-de-Tratamento-de-Erros-em-Duas-Camadas.md" />
+    <File Path="../docs/adr/ADR-014-Observabilidade-com-Datadog.md" />
     <File Path="../docs/adr/INDICE.md" />
   </Folder>
   <Folder Name="/E2E/">
@@ -52,6 +53,7 @@
     <Project Path="Tests/TechChallenge.Oficina.Integration.Tests/TechChallenge.Oficina.Integration.Tests.csproj" />
     <Project Path="Tests/TechChallenge.Oficina.CreateOSService.API.Tests/TechChallenge.Oficina.CreateOSService.API.Tests.csproj" />
     <Project Path="Tests/TechChallenge.Oficina.GetOSService.API.Tests/TechChallenge.Oficina.GetOSService.API.Tests.csproj" />
+    <Project Path="Tests/TechChallenge.Oficina.ApprovalService.API.Tests/TechChallenge.Oficina.ApprovalService.API.Tests.csproj" />
   </Folder>
 </Solution>
 

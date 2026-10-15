@@ -1,4 +1,5 @@
-﻿using TechChallenge.Oficina.ApprovalService.API.Extensions;
+﻿using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using TechChallenge.Oficina.ApprovalService.API.Extensions;
 using TechChallenge.Oficina.ApprovalService.API.Features.OrdensServico;
 using TechChallenge.Oficina.Controllers.Features.OrdensServico;
 using TechChallenge.Oficina.Controllers.Features.Clientes;
@@ -27,6 +28,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+builder.Services.AddLoggingConfiguration(builder.Configuration);
 builder.Services.AddSwaggerConfiguration();
 builder.Services.AddAuthConfiguration(builder.Configuration);
 builder.Services.AddHealthChecks();
@@ -68,6 +70,7 @@ builder.Services.AddScoped<IServicoAdapter, ServicoAdapter>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseLoggingConfiguration();
 app.UseSwaggerConfiguration();
 app.UseGlobalExceptionHandlerMiddleware();
 
@@ -75,7 +78,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHealthChecks("/health").AllowAnonymous();
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
 var group = app.MapGroup("/api/approval")
     .WithTags("ApprovalService")

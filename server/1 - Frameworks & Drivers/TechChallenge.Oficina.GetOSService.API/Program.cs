@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using TechChallenge.Oficina.GetOSService.API.Extensions;
 using TechChallenge.Oficina.GetOSService.API.Features.OrdensServico;
 using TechChallenge.Oficina.GetOSService.API.Middleware;
@@ -20,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+builder.Services.AddLoggingConfiguration(builder.Configuration);
 builder.Services.AddSwaggerConfiguration();
 builder.Services.AddAuthConfiguration(builder.Configuration);
 
@@ -55,8 +57,18 @@ builder.Services.AddScoped<IOrdensServicoAdapter, OrdensServicoAdapter>();
 
 var app = builder.Build();
 
-app.Services.ApplyMigrations();
+try
+{
+    app.Services.ApplyMigrations();
+}
+catch (Exception ex)
+{
+    app.Logger.LogCritical(new EventId(9002, "app.migracao_falhou"), ex, "Falha ao aplicar as migrations do banco");
+    Environment.ExitCode = 1;
+    return;
+}
 
+app.UseLoggingConfiguration();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseSwaggerConfiguration();
@@ -65,6 +77,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 app.MapOrdensServicoEndpoints();
 
 await app.RunAsync();

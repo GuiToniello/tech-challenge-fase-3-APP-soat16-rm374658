@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using TechChallenge.Oficina.StatusService.API.Features.OrdensServico;
 using TechChallenge.Oficina.UseCases.Features.Clientes.UseCases;
@@ -73,6 +74,7 @@ public sealed class StatusOrdemServicoEndpointsTests
             _insumoUseCasesMock.Object,
             _servicoUseCasesMock.Object,
             _ordemServicoUseCasesMock.Object,
-            adapter);
+            adapter,
+            NullLogger<OrdensServicoController>.Instance);
     }
 }

@@ -39,7 +39,11 @@ public sealed class IndicadorUseCases : IIndicadorUseCases
     public async Task AtualizarAsync(CancellationToken cancellationToken = default)
     {
         var ordensEntregues = await _ordemServicoGateway.ListarPorStatusAsync(StatusOrdemServico.Entregue, cancellationToken);
-        var temposExecucao = ordensEntregues.Select(ordemServico => ordemServico.ObterTempoExecucao()).ToArray();
+        // Orçamento recusado leva a OS direto para Finalizada, sem passar por EmExecucao; essas OS ficam fora do tempo médio de execução.
+        var temposExecucao = ordensEntregues
+            .Where(ordemServico => ordemServico.HistoricoStatus.Any(historico => historico.Status == StatusOrdemServico.EmExecucao))
+            .Select(ordemServico => ordemServico.ObterTempoExecucao())
+            .ToArray();
         var temposEntrega = ordensEntregues.Select(ordemServico => ordemServico.ObterTempoEntrega()).ToArray();
 
         var indicador = await _indicadorGateway.ObterAsync(cancellationToken) ?? Indicador.Criar(TimeSpan.Zero, TimeSpan.Zero);

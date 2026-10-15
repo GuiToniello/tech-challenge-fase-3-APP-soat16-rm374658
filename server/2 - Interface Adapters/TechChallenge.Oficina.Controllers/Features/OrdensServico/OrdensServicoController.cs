@@ -1,8 +1,10 @@
+using Microsoft.Extensions.Logging;
 using TechChallenge.Oficina.UseCases.Features.Clientes.Commands;
 using TechChallenge.Oficina.UseCases.Features.Clientes.UseCases;
 using TechChallenge.Oficina.UseCases.Features.Insumos.Commands;
 using TechChallenge.Oficina.UseCases.Features.Insumos.UseCases;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Commands;
+using TechChallenge.Oficina.UseCases.Features.OrdensServico.Logging;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.Queries;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.UseCases;
 using TechChallenge.Oficina.UseCases.Features.OrdensServico.ViewModels;
@@ -23,6 +25,7 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
         private readonly IServicoUseCases _servicoUseCases;
         private readonly IOrdemServicoUseCases _ordemServicoService;
         private readonly IOrdensServicoAdapter _ordensServicoAdapter;
+        private readonly ILogger<OrdensServicoController> _logger;
 
         public OrdensServicoController(
             IClienteUseCases clienteUseCases,
@@ -30,7 +33,8 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             IInsumoUseCases insumoUseCases,
             IServicoUseCases servicoUseCases,
             IOrdemServicoUseCases ordemServicoUseCases,
-            IOrdensServicoAdapter ordensServicoAdapter)
+            IOrdensServicoAdapter ordensServicoAdapter,
+            ILogger<OrdensServicoController> logger)
         {
             _clienteUseCases = clienteUseCases;
             _veiculoUseCases = veiculoUseCases;
@@ -38,6 +42,7 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             _servicoUseCases = servicoUseCases;
             _ordemServicoService = ordemServicoUseCases;
             _ordensServicoAdapter = ordensServicoAdapter;
+            _logger = logger;
         }
 
         public async Task<object> Post(CriarOrdemServicoCommand command, CancellationToken cancellationToken)
@@ -51,12 +56,14 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Abertura, null, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Abertura, null, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
@@ -144,12 +151,14 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Abertura, null, exception);
                 var result = OrdensServicoResult.FromError<AberturaOrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Abertura, null, exception);
                 var result = OrdensServicoResult.FromError<AberturaOrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
@@ -232,12 +241,14 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Atualizacao, command.Id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Atualizacao, command.Id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
 
                 return _ordensServicoAdapter.Adapt(result);
@@ -255,6 +266,7 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Exclusao, id, exception);
                 var result = OrdensServicoResult.FromError<bool>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -271,11 +283,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Diagnostico, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Diagnostico, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -292,11 +306,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Execucao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Execucao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -313,11 +329,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Finalizacao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Finalizacao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -334,11 +352,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Entrega, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.Entrega, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -355,11 +375,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoGeracao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoGeracao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -375,11 +397,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoEnvio, id, exception);
                 var result = OrdensServicoResult.FromError<bool>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoEnvio, id, exception);
                 var result = OrdensServicoResult.FromError<bool>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -396,11 +420,13 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoAprovacao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoAprovacao, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
@@ -417,14 +443,32 @@ namespace TechChallenge.Oficina.Controllers.Features.OrdensServico
             }
             catch (DomainException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoRecusa, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
             catch (KeyNotFoundException exception)
             {
+                RegistrarFalha(OrdemServicoLogEventos.Etapas.OrcamentoRecusa, id, exception);
                 var result = OrdensServicoResult.FromError<OrdemServicoViewModel>(exception);
                 return _ordensServicoAdapter.Adapt(result);
             }
+        }
+
+        private void RegistrarFalha(string etapa, Guid? ordemServicoId, Exception exception)
+        {
+            var tipoFalha = exception is KeyNotFoundException
+                ? OrdemServicoLogEventos.TiposFalha.NaoEncontrado
+                : OrdemServicoLogEventos.TiposFalha.RegraNegocio;
+
+            // Rejeicao de regra de negocio nao e erro de aplicacao: registra so o motivo, sem stack trace
+            _logger.LogWarning(
+                OrdemServicoLogEventos.OsFalha,
+                "Falha na etapa {Etapa} da ordem de servico {OrdemServicoId} ({TipoFalha}): {Motivo}",
+                etapa,
+                ordemServicoId,
+                tipoFalha,
+                exception.Message);
         }
     }
 }

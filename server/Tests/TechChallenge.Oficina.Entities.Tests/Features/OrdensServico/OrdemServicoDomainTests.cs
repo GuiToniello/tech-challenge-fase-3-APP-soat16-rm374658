@@ -269,6 +269,37 @@ public sealed class OrdemServicoDomainTests
     }
 
     [Fact]
+    public void OrdemServico_ValidarGeracaoOrcamento_DeveLancar_QuandoStatusForFinalizada()
+    {
+        var ordemServico = OrdemServico.Criar(Guid.NewGuid(), Guid.NewGuid(), [CriarServico()]);
+        ordemServico.AlterarParaEmDiagnostico();
+        ordemServico.AlterarParaEmExecucao();
+        ordemServico.AlterarParaFinalizada();
+
+        var action = () => ordemServico.ValidarGeracaoOrcamento();
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Equal("Somente ordem de servico recebida, em diagnostico ou aguardando aprovacao pode ter orcamento gerado.", exception.Message);
+    }
+
+    [Fact]
+    public void OrdemServico_GerarOrcamento_DeveLancarSemAlterarOrdem_QuandoOrcamentoJaFoiRecusado()
+    {
+        var ordemServico = OrdemServico.Criar(Guid.NewGuid(), Guid.NewGuid(), [CriarServicoComItens("Troca", (1, 50m))], new DateTime(2024, 01, 01, 8, 00, 00, DateTimeKind.Utc));
+        ordemServico.GerarOrcamento(new DateTime(2024, 01, 01, 9, 00, 00, DateTimeKind.Utc));
+        ordemServico.RecusarOrcamento(new DateTime(2024, 01, 01, 10, 00, 00, DateTimeKind.Utc));
+        var orcamentoRecusado = ordemServico.Orcamento;
+
+        var action = () => ordemServico.GerarOrcamento(new DateTime(2024, 01, 01, 11, 00, 00, DateTimeKind.Utc));
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Equal("Somente ordem de servico recebida, em diagnostico ou aguardando aprovacao pode ter orcamento gerado.", exception.Message);
+        Assert.Equal(StatusOrdemServico.Finalizada, ordemServico.Status);
+        Assert.Same(orcamentoRecusado, ordemServico.Orcamento);
+        Assert.Equal(3, ordemServico.HistoricoStatus.Count);
+    }
+
+    [Fact]
     public void Orcamento_Criar_DeveLancarQuandoOrdemServicoIdForInvalido()
     {
         var servico = CriarServicoComItens("Troca", (1, 10m));
@@ -328,5 +359,19 @@ public sealed class OrdemServicoDomainTests
 
         var exception = Assert.Throws<DomainException>(action);
         Assert.Equal("Somente ordem de servico aguardando aprovacao pode ser aprovada.", exception.Message);
+    }
+
+    [Fact]
+    public void OrdemServico_ValidarAprovacaoOrcamento_DeveLancar_QuandoOrcamentoJaFoiAprovado()
+    {
+        var ordemServico = OrdemServico.Criar(Guid.NewGuid(), Guid.NewGuid(), [CriarServico()]);
+        ordemServico.GerarOrcamento();
+        ordemServico.AprovarOrcamento();
+
+        var action = () => ordemServico.ValidarAprovacaoOrcamento();
+
+        var exception = Assert.Throws<DomainException>(action);
+        Assert.Equal("Somente ordem de servico aguardando aprovacao pode ser aprovada.", exception.Message);
+        Assert.Equal(StatusOrdemServico.EmExecucao, ordemServico.Status);
     }
 }
